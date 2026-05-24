@@ -1,0 +1,21 @@
+
+> start
+> node index.js
+
+[1G[0K[dotenv@17.2.3] injecting env (0) from .env [2m-- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops[0m
+MongoDB Connected Successfully
+Chat API server listening at http://localhost:8000
+{
+  _id: new ObjectId([32m'69f8454d16dfb1851d6f7f06'[39m),
+  username: [32m'piyushmodi170@gmail.com'[39m,
+  email: [32m'piyushmodi170@gmail.com'[39m,
+  password: [32m'$2b$10$OuUQ/lkyIlLpTyMuRM97LeCKevnNbZaFSI6hS4fmEIVXoYLz/Z3nG'[39m,
+  googleId: [1mnull[22m,
+  authProvider: [32m'local'[39m,
+  picture: [1mnull[22m,
+  resetPasswordToken: [1mnull[22m,
+  resetPasswordExpires: [1mnull[22m,
+  createdAt: [35m2026-05-04T07:05:49.275Z[39m,
+  __v: [33m0[39m,
+  isAdmin: [33mfalse[39m
+}

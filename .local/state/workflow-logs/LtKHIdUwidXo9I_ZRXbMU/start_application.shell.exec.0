@@ -1,0 +1,317 @@
+[1G[0K⠙[1G[0K
+> vite-project@0.0.0 dev
+> vite
+
+[1G[0K⠙[1G[0K
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J
+  [32m[1mVITE[22m v7.2.7[39m  [2mready in [0m[1m1241[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5000[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.96.34:[1m5000[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:25:53 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/Admin/AdminPanel.jsx[22m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:27:18 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/Admin/AdminPanel.jsx, /src/index.css[22m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:30:45 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/Admin/AdminPanel.jsx, /src/index.css[22m [33m(x2)[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:30:45 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: /home/runner/workspace/client/src/components/Admin/AdminPanel.jsx: Unterminated JSX contents. (399:10)
+
+[0m [90m 397 |[31m
+ [90m 398 |[31m       [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+[31m[1m>[22m[31m[90m 399 |[31m     [33m<[31m[33m/[31m[33mdiv[31m[33m>[31m
+ [90m     |[31m           [31m[1m^[22m[31m
+ [90m 400 |[31m   )[33m;[31m
+ [90m 401 |[31m }[33m;[31m
+ [90m 402 |[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36m/home/runner/workspace/client/src/components/Admin/AdminPanel.jsx[39m:399:10
+[33m  397 |  
+  398 |        </div>
+  399 |      </div>
+      |            ^
+  400 |    );
+  401 |  };[39m
+      at constructor (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:367:19)
+      at JSXParserMixin.raise (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:6624:19)
+      at JSXParserMixin.jsxReadToken (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4477:20)
+      at JSXParserMixin.getTokenFromCode (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4803:12)
+      at JSXParserMixin.nextToken (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:5807:10)
+      at JSXParserMixin.next (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:5717:10)
+      at JSXParserMixin.eat (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:5721:12)
+      at JSXParserMixin.expect (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:6923:15)
+      at JSXParserMixin.jsxParseClosingElementAt (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4709:10)
+      at JSXParserMixin.jsxParseElementAt (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4724:37)
+      at JSXParserMixin.jsxParseElementAt (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4727:32)
+      at JSXParserMixin.jsxParseElement (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4778:17)
+      at JSXParserMixin.parseExprAtom (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4788:19)
+      at JSXParserMixin.parseExprSubscripts (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11145:23)
+      at JSXParserMixin.parseUpdate (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11130:21)
+      at JSXParserMixin.parseMaybeUnary (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11110:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10963:61)
+      at JSXParserMixin.parseExprOps (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10968:23)
+      at JSXParserMixin.parseMaybeConditional (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10945:23)
+      at JSXParserMixin.parseMaybeAssign (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10895:21)
+      at /home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10864:39
+      at JSXParserMixin.allowInAnd (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12500:12)
+      at JSXParserMixin.parseMaybeAssignAllowIn (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10864:17)
+      at JSXParserMixin.parseMaybeAssignAllowInOrVoidPattern (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12567:17)
+      at JSXParserMixin.parseParenAndDistinguishExpression (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11747:28)
+      at JSXParserMixin.parseExprAtom (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11395:23)
+      at JSXParserMixin.parseExprAtom (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4793:20)
+      at JSXParserMixin.parseExprSubscripts (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11145:23)
+      at JSXParserMixin.parseUpdate (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11130:21)
+      at JSXParserMixin.parseMaybeUnary (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11110:23)
+      at JSXParserMixin.parseMaybeUnaryOrPrivate (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10963:61)
+      at JSXParserMixin.parseExprOps (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10968:23)
+      at JSXParserMixin.parseMaybeConditional (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10945:23)
+      at JSXParserMixin.parseMaybeAssign (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10895:21)
+      at JSXParserMixin.parseExpressionBase (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10848:23)
+      at /home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10844:39
+      at JSXParserMixin.allowInAnd (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12495:16)
+      at JSXParserMixin.parseExpression (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:10844:17)
+      at JSXParserMixin.parseReturnStatement (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:13218:28)
+      at JSXParserMixin.parseStatementContent (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12874:21)
+      at JSXParserMixin.parseStatementLike (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12843:17)
+      at JSXParserMixin.parseStatementListItem (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12823:17)
+      at JSXParserMixin.parseBlockOrModuleBlockBody (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:13392:61)
+      at JSXParserMixin.parseBlockBody (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:13385:10)
+      at JSXParserMixin.parseBlock (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:13373:10)
+      at JSXParserMixin.parseFunctionBody (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12174:24)
+      at JSXParserMixin.parseArrowExpression (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:12149:10)
+      at JSXParserMixin.parseParenAndDistinguishExpression (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11759:12)
+      at JSXParserMixin.parseExprAtom (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:11395:23)
+      at JSXParserMixin.parseExprAtom (/home/runner/workspace/client/node_modules/@babel/parser/lib/index.js:4793:20)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:31:10 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/Admin/AdminPanel.jsx, /src/index.css[22m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:32:27 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/Admin/AdminPanel.jsx, /src/index.css[22m [33m(x2)[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:32:27 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/Admin/AdminPanel.jsx[22m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:32:27 AM[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m7:32:27 AM[22m [36m[1m[vite][22m[39m server restarted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m7:32:27 AM[22m [36m[1m[vite][22m[39m [32mvite.config.js changed, restarting server...[39m
+[2m7:32:27 AM[22m [36m[1m[vite][22m[39m server restarted.

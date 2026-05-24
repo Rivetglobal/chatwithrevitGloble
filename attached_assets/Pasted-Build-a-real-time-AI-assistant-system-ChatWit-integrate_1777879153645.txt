@@ -1,0 +1,175 @@
+Build a real-time AI assistant system (ChatWit) integrated with Google Sheets (or Excel) acting as both:
+
+1. **Live Database (Availability / Booking)**
+2. **Dynamic Settings & Prompt Control Panel**
+
+---
+
+### ✅ CORE SYSTEM REQUIREMENTS
+
+#### 1. Sheet as Backend (Live Source)
+
+* Connect ChatWit to a spreadsheet via API (Google Sheets API preferred)
+* Sheet must act as:
+
+  * Data source (availability, bookings)
+  * Configuration panel (custom prompts, rules)
+
+---
+
+#### 2. Real-Time Sync (NO CACHE)
+
+* Every user message triggers fresh sheet read
+* Any change in sheet = instant AI behavior update
+* No restart required
+
+---
+
+#### 3. Availability Auto-Population
+
+When user says:
+
+> "I am available tomorrow at 3 PM in Mumbai"
+
+System should:
+
+* Extract:
+
+  * Date
+  * Time
+  * Location
+* Check sheet:
+
+  * If slot exists → check status
+  * If not → create new entry
+* If **Available**:
+
+  * Save booking in sheet
+  * Mark as "Booked"
+* If **Booked**:
+
+  * Do NOT overwrite
+  * Suggest alternative slots
+
+---
+
+#### 4. Sheet Structure
+
+**Sheet: Availability**
+Columns:
+
+* Date
+* Time
+* Location
+* Name
+* Phone
+* Status (Available / Booked)
+* CreatedAt
+
+---
+
+**Sheet: Settings**
+(Admin-controlled behavior)
+
+| Key              | Value                                            |
+| ---------------- | ------------------------------------------------ |
+| system_prompt    | You are ChatWit, a booking assistant             |
+| booked_response  | This slot is already booked. Try: {alternatives} |
+| confirm_response | You are booked for {time} at {location}          |
+| slot_duration    | 60                                               |
+| business_hours   | 09:00-18:00                                      |
+
+---
+
+#### 5. Dynamic Prompt Injection
+
+* Load Settings sheet on every request
+* Inject into system prompt
+* Admin can change AI behavior directly via sheet
+
+---
+
+#### 6. AI Tool Behavior
+
+ChatWit must support:
+
+* check_availability(date, time, location)
+* book_slot(date, time, location, name)
+
+---
+
+#### 7. Example Flow
+
+Sheet:
+
+* 3 PM → Booked
+
+User:
+"I want 3 PM slot"
+
+Response:
+"This slot is already booked. Available slots are 4 PM and 5 PM."
+
+---
+
+If Available:
+
+"You are booked for 3 PM. Confirmation saved."
+
+---
+
+#### 8. Data Integrity (IMPORTANT)
+
+* Prevent double booking
+* Before booking:
+
+  * Re-check latest sheet state
+* Ensure atomic update
+
+---
+
+#### 9. System Capabilities
+
+ChatWit must:
+
+* Perform real-time API calls
+* Extract structured data using AI (NLP)
+* Sync chat ↔ sheet instantly
+* Handle errors (API fail, empty data)
+
+---
+
+#### 10. Final Goal
+
+Transform spreadsheet into:
+
+* Live backend
+* Admin control panel
+* No-code AI configuration system
+
+---
+
+### OUTPUT REQUIRED
+
+Provide:
+
+1. Architecture diagram (text)
+2. API flow
+3. Backend code (Node.js / Express)
+4. Sheet API integration
+5. Chat + tool calling logic
+
+---
+
+### PRIORITY
+
+* Real-time behavior > performance
+* Accuracy > speed
+* Simplicity > over-engineering
+
+---
+
+### NOTE
+
+Start with Google Sheets (service account based).
+No OAuth complexity in v1.

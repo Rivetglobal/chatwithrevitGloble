@@ -1,0 +1,84 @@
+Build a system where an AI assistant (ChatWit) is connected to a live spreadsheet (Google Sheets or Excel) that acts as a dynamic data source and settings panel.
+
+Requirements:
+
+1. **Live Sheet Integration**
+
+   * Connect ChatWit to a spreadsheet via API (Google Sheets API or Excel API).
+   * The sheet should act as both:
+
+     * Data source (availability, bookings, etc.)
+     * Config/settings panel (editable prompts, rules, responses)
+
+2. **Real-Time Read & Write**
+
+   * ChatWit must:
+
+     * Read data from the sheet in real time
+     * Write/update data instantly when user provides new info
+   * Changes in sheet should reflect immediately in AI behavior (no restart)
+
+3. **Availability Auto-Population (Core Feature)**
+
+   * When a user says something like:
+     “I am available tomorrow at 3 PM in Mumbai”
+   * ChatWit should:
+
+     * Extract structured data (time, date, location)
+     * Check sheet for conflicts (already booked or free)
+     * If free → add entry in Availability Sheet
+     * If booked → respond accordingly and suggest alternatives
+
+4. **Booking Status Handling**
+
+   * Sheet should include fields like:
+
+     * Name
+     * Time
+     * Location
+     * Status (Available / Booked)
+   * ChatWit should:
+
+     * Update status automatically
+     * Prevent double booking
+     * Return correct response based on status
+
+5. **Dynamic Prompt from Sheet (Settings Control)**
+
+   * Create a “Settings” sheet where admin can define:
+
+     * Custom responses
+     * Behavior rules
+     * Conditions (if booked, if available, etc.)
+   * ChatWit should read and follow these prompts dynamically
+
+6. **Example Behavior**
+
+   Sheet Data:
+
+   * 3 PM slot → Booked
+
+   User Input:
+   “I want 3 PM slot”
+
+   ChatWit Response:
+   “That time is already booked. Available slots are 4 PM or 5 PM.”
+
+   If slot is free:
+   “You’re booked for 3 PM. Confirmation saved.”
+
+7. **System Capability Check**
+
+   * Confirm ChatWit can:
+
+     * Perform real-time API calls
+     * Handle structured data extraction (NLP)
+     * Sync data between chat and sheet instantly
+
+8. **Goal**
+
+   * Turn spreadsheet into a live backend + control panel
+   * Enable non-technical users to modify AI behavior via sheet edits
+
+Output:
+Provide implementation approach, API flow, and sample code for integration.

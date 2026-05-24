@@ -1,0 +1,36 @@
+Fix Bookings dialog white-screen, remove leaked Google credentials, harden post-merge
+
+User report: clicking the new "Bookings" button on a project showed a
+white screen with the page auto-refreshing.
+
+Bookings dialog (client/src/components/Projects/ProjectDetail.jsx):
+- Hardened loadBookingRows so an unexpected/partial response from
+  /api/projects/:id/booking/rows can no longer crash the dialog. The
+  payload is now normalised: rows are coerced to plain objects with
+  string-only cell values (objects/arrays JSON-stringified), counts are
+  coerced to finite numbers, and tabName/sheetUrl/returned defaulted.
+  Any error from the call is logged to the console and surfaced in the
+  dialog rather than bubbling up.
+- Tightened the per-project "Custom rules & instructions for the AI"
+  textarea label, placeholder examples, and helper copy.
+
+Security (critical, user must rotate):
+- Discovered a Google service-account private key (private_key_id
+  9a806c3a01...) committed in two places:
+    1. .replit -> [userenv.shared] GOOGLE_SERVICE_ACCOUNT_JSON (full JSON)
+    2. attached_assets/gen-lang-client-0941709967-9a806c3a0122_*.json
+- Removed the env var via deleteEnvVars (the value also exists as a
+  proper Replit Secret, so backend keeps working).
+- Deleted the JSON file from attached_assets/.
+- Added .gitignore patterns for service-account JSON files
+  (gen-lang-client-*.json, *service-account*.json, *-credentials*.json)
+  to prevent recurrence.
+- Told the user (in chat) to revoke that key in Google Cloud Console
+  and upload a fresh JSON into the GOOGLE_SERVICE_ACCOUNT_JSON secret.
+
+Post-merge setup:
+- Added scripts/post-merge.sh (installs server + client deps, set -e,
+  non-interactive) and registered it via setPostMergeConfig so the
+  HOOK_NOT_FOUND error after task merges no longer fires.
+
+Backend restarted cleanly after env var removal; client builds clean.

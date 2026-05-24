@@ -1,0 +1,7 @@
+node_modules/
+.env
+
+# Never commit Google Cloud / service-account credentials.
+gen-lang-client-*.json
+*service-account*.json
+*-credentials*.json

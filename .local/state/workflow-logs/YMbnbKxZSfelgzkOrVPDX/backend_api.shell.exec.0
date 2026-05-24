@@ -1,0 +1,7 @@
+[1G[0K⠙[1G[0K
+> start
+> node index.js
+
+[1G[0K⠙[1G[0K[dotenv@17.2.3] injecting env (0) from .env [2m-- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops[0m
+MongoDB Connected Successfully
+Chat API server listening at http://localhost:8000

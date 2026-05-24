@@ -1,0 +1,29 @@
+
+> start
+> node index.js
+
+[1G[0K[dotenv@17.2.3] injecting env (0) from .env [2m-- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com[0m
+MongoDB Connected Successfully
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::8000
+[90m    at Server.setupListenHandle [as _listen2] (node:net:1908:16)[39m
+[90m    at listenInCluster (node:net:1965:12)[39m
+[90m    at Server.listen (node:net:2067:7)[39m
+    at Function.listen [90m(/home/runner/workspace/server/[39mnode_modules/[4mexpress[24m/lib/application.js:635:24[90m)[39m
+    at [90m/home/runner/workspace/server/[39mindex.js:86:7
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+Emitted 'error' event on Server instance at:
+[90m    at emitErrorNT (node:net:1944:8)[39m
+[90m    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)[39m {
+  code: [32m'EADDRINUSE'[39m,
+  errno: [33m-98[39m,
+  syscall: [32m'listen'[39m,
+  address: [32m'::'[39m,
+  port: [33m8000[39m
+}
+
+Node.js v20.20.0
+[1G[0K⠙[1G[0K

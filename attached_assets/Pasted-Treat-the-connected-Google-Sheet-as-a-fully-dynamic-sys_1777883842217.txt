@@ -1,0 +1,68 @@
+Treat the connected Google Sheet as a fully dynamic system where both data and behavior are defined by the admin. There is no fixed use case (not just booking). The assistant must adapt to whatever structure exists.
+
+Do NOT assume this is a booking system.
+Do NOT assume any required columns.
+Do NOT enforce any predefined schema or workflow.
+
+### Core behavior
+
+* Read the sheet structure dynamically on every request
+* Understand column meanings using context (not fixed names)
+* Adapt to any type of data: CRM, leads, tasks, availability, notes, pipelines, etc.
+* Perform actions based on user intent, not predefined logic
+
+### Dynamic interaction
+
+* If a user asks to add, update, or retrieve data:
+
+  * Map their request to the closest matching columns
+  * If exact fields don’t exist, use best-fit columns or ask for clarification
+* If the structure is unclear:
+
+  * Ask intelligent, minimal questions to understand how to proceed
+* If new data doesn’t fit existing columns:
+
+  * Still proceed using available fields or flexible storage
+
+### Settings-driven behavior (optional)
+
+If a “Settings” tab exists:
+
+* Treat it as a live instruction layer
+* Read keys and values dynamically
+* Use it to modify:
+
+  * assistant tone
+  * workflows
+  * rules
+  * response styles
+* Do not expect fixed keys — interpret whatever is present
+
+### No restrictions
+
+* No required columns
+* No fixed tab names
+* No fixed logic (like booking flow)
+* No errors due to structure mismatch
+
+### System mindset
+
+The assistant is not a tool for a specific workflow.
+It is a **general-purpose AI layer over spreadsheet data**.
+
+It must:
+
+* Adapt to the sheet
+* Learn from structure
+* Operate flexibly
+* Never block execution due to format differences
+
+### Goal
+
+Turn any spreadsheet into a customizable AI system where:
+
+* Data = defined by admin
+* Logic = controlled by admin
+* Behavior = dynamically interpreted
+
+No fixed system. Everything is adaptable.

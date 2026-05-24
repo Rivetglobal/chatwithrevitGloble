@@ -1,0 +1,25 @@
+:root {
+  --rv-bg: #0c1117;
+  --rv-sidebar: #111827;
+  --rv-surface: #131929;
+  --rv-card: #1a2234;
+  --rv-card-hover: #1f2a40;
+  --rv-border: #1e2d45;
+  --rv-accent: #5b8dee;
+  --rv-accent-dim: rgba(91, 141, 238, 0.12);
+  --rv-accent-text: #93c5fd;
+  --rv-text: #f1f5f9;
+  --rv-muted: #64748b;
+  --rv-muted-light: #94a3b8;
+  --rv-error: #f87171;
+  --rv-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.rv-root {
+  font-family: var(--rv-font);
+  color: var(--rv-text);
+}
+
+.rv-scroll::-webkit-scrollbar { width: 6px; }
+.rv-scroll::-webkit-scrollbar-track { background: transparent; }
+.rv-scroll::-webkit-scrollbar-thumb { background: var(--rv-border); border-radius: 3px; }

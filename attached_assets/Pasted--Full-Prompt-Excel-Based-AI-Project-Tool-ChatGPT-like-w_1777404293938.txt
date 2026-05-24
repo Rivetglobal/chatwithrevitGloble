@@ -1,0 +1,133 @@
+# 🚀 Full Prompt: Excel-Based AI Project Tool (ChatGPT-like with Sources)
+
+## 🎯 Objective
+
+Build a smart AI-powered project tool where users can upload Excel/CSV files as data sources and interact with them through a chat interface. The system should behave like ChatGPT but only answer based on the uploaded data.
+
+---
+
+## 📂 Core System Requirements
+
+### 1. Data Upload (Source System)
+
+* Allow users to upload Excel (.xlsx) or CSV files
+* Parse and store the file as a structured dataset
+* Treat uploaded files as **trusted sources**
+* Support columns like:
+
+  * Name
+  * Status (Booked / Available)
+  * Custom fields
+
+---
+
+### 2. Chat Interface (User Interaction)
+
+* Provide a chat UI similar to ChatGPT
+* Users can ask natural language queries like:
+
+  * "Is Rahul available?"
+  * "Show all available names"
+  * "Which entries are booked?"
+* System should interpret queries and map them to dataset
+
+---
+
+### 3. Core Logic (Data Query Engine)
+
+* Match user input with dataset values
+* Example:
+
+  * Input: "Rahul"
+  * Output:
+
+    * If exists → return status (Available / Booked)
+    * If not → return "Name not found"
+* Must support filtering, searching, and condition-based queries
+
+---
+
+### 4. Source-Based Answering (Strict Mode)
+
+* AI must ONLY answer using uploaded data
+* If answer not found in data:
+
+  * Respond: "Not available in provided source"
+* No hallucination or external knowledge allowed
+
+---
+
+### 5. Custom Prompting System
+
+* Allow users to define response behavior:
+
+  * Short answer (default)
+  * Detailed answer
+  * Format (text / bullet / structured)
+* Example:
+
+  * Short Mode → "Rahul → Available ✅"
+  * Detailed Mode → "Rahul is currently marked as Available in the uploaded dataset."
+
+---
+
+### 6. Source Visibility (Like ChatGPT)
+
+* Show which file/data source was used
+* Optional: highlight row/entry from dataset
+
+---
+
+### 7. Response Time Control
+
+* User can select response speed:
+
+  * Fast → ~5 seconds
+  * Medium → 10–15 seconds
+  * Deep → up to 30 seconds
+* System should adjust processing depth accordingly
+
+---
+
+## 💬 Example Interaction
+
+**User:** Is Rahul available?
+
+**System Output:**
+Rahul → Available ✅
+
+---
+
+## ⚙️ Advanced Features (Optional)
+
+* Multi-file upload and cross-query
+* Filters (only available / only booked)
+* Export results
+* Admin panel for dataset management
+* Real-time updates in dataset
+
+---
+
+## 🧠 Behavior Rules
+
+* Always prioritize uploaded data
+* Keep answers short unless user requests detail
+* Maintain chat-like conversational flow
+* Ensure accuracy and consistency
+
+---
+
+## 📌 Final Goal
+
+A ChatGPT-style AI tool that:
+
+* Reads Excel files as knowledge sources
+* Allows custom prompting
+* Answers queries instantly (5–30 sec)
+* Provides clean, accurate, source-based responses
+
+---
+
+## 🔥 One-Line Summary
+
+"Upload your Excel → Ask anything → Get instant, accurate answers from your own data."

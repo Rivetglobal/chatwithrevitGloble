@@ -1,0 +1,8 @@
+
+> start
+> node index.js
+
+[1G[0K[dotenv@17.2.3] injecting env (0) from .env [2m-- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`[0m
+MongoDB Connected Successfully
+[admin] Integrations loaded from DB.
+Chat API server listening at http://localhost:8000
