@@ -120,8 +120,7 @@ const Chat = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) { navigate("/login"); return; }
+        if (!authService.isAuthenticated()) { navigate("/login"); return; }
         const userData = await authService.getProfile();
         setUser(userData);
       } catch (err) {

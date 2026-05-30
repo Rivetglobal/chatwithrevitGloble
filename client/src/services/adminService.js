@@ -1,10 +1,11 @@
 import axios from 'axios';
+import authService from './authService';
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || '/api'}/admin`;
 
 function authHeader() {
-  const token = localStorage.getItem('token');
-  return { Authorization: `Bearer ${token}` };
+  const token = authService.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 const adminService = {

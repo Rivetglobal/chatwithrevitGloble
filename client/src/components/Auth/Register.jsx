@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from "lucide-react";
 import authService from "../../services/authService";
@@ -27,6 +27,12 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      navigate("/projects", { replace: true });
+    }
+  }, [navigate]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError("");
@@ -41,9 +47,8 @@ const Register = () => {
     setLoading(true);
     try {
       const response = await authService.register(formData);
-      localStorage.setItem("token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      navigate("/chat");
+      authService.setSession(response.token, response.user, { remember: true });
+      navigate("/projects");
     } catch (err) {
       setError(err.response?.data?.error || "Registration failed. Please try again.");
     } finally {

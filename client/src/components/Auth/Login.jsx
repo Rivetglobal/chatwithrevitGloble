@@ -10,12 +10,18 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(() => localStorage.getItem("rememberMe") !== "false");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const googleBtnRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      navigate("/projects", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
@@ -27,13 +33,12 @@ const Login = () => {
         const res = await fetch("/api/auth/google", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential: response.credential }),
+          body: JSON.stringify({ credential: response.credential, rememberMe: true }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Google sign-in failed");
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        navigate("/chat");
+        authService.setSession(data.token, data.user, { remember: true });
+        navigate("/projects");
       } catch (err) {
         setError(err.message || "Google sign-in failed. Please try again.");
         setGoogleLoading(false);
@@ -81,13 +86,9 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      const response = await authService.login(formData);
-      if (remember) {
-        localStorage.setItem("rememberMe", "true");
-      }
-      localStorage.setItem("token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      navigate("/chat");
+      const response = await authService.login(formData, remember);
+      authService.setSession(response.token, response.user, { remember });
+      navigate("/projects");
     } catch (err) {
       setError(err.response?.data?.error || "Invalid email or password.");
     } finally {
@@ -308,7 +309,7 @@ const Login = () => {
                   boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.2s",
                 }} />
               </div>
-              Remember me
+              Remember me for 30 days
             </label>
             <button
               type="button"

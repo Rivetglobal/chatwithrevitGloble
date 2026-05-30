@@ -4,8 +4,11 @@ const User = require("../models/User");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+const generateToken = (userId, rememberMe = true) => {
+  const expiresIn = rememberMe
+    ? (process.env.JWT_REMEMBER_EXPIRES || "30d")
+    : (process.env.JWT_EXPIRES || "1d");
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn });
 };
 
 exports.register = async (req, res) => {
@@ -28,7 +31,8 @@ exports.register = async (req, res) => {
     console.log("new user ", user);
     await user.save();
 
-    const token = generateToken(user._id);
+    const rememberMe = req.body?.rememberMe !== false;
+    const token = generateToken(user._id, rememberMe);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -67,7 +71,8 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = generateToken(user._id);
+    const rememberMe = req.body?.rememberMe !== false;
+    const token = generateToken(user._id, rememberMe);
 
     res.json({
       message: "Login successful",
@@ -131,7 +136,8 @@ exports.googleAuth = async (req, res) => {
       }
     }
 
-    const token = generateToken(user._id);
+    const rememberMe = req.body?.rememberMe !== false;
+    const token = generateToken(user._id, rememberMe);
     res.json({
       message: "Google login successful",
       token,

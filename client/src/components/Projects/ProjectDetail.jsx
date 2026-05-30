@@ -107,6 +107,12 @@ const ProjectDetail = () => {
       } catch (e) {
         console.error(e);
       }
+      try {
+        const info = await projectService.getBookingInfo(id);
+        setBookingInfo(info);
+      } catch (e) {
+        console.error("Failed to load sheet assistant info", e);
+      }
       // Load this project's saved conversations and auto-open the most recent
       // one so the user lands back where they left off.
       try {
@@ -441,6 +447,9 @@ const ProjectDetail = () => {
     );
   }
 
+  const isSheetMode = (project.mode || "chat") === "booking" && !!project.bookingSheet?.sheetId;
+  const hasReadOnlySheetSource = project.sources.some((s) => s.sourceUrl && /docs\.google\.com\/spreadsheets/i.test(s.sourceUrl));
+
   return (
     <div style={{ height: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column", fontFamily: font, overflow: "hidden", position: "fixed", inset: 0 }}>
       {/* TOP BAR */}
@@ -540,7 +549,7 @@ const ProjectDetail = () => {
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = C.mutedLight; }}
               >
                 <LinkIcon sx={{ fontSize: 16 }} />
-                Add sheet link (Google or Excel)
+                Import sheet snapshot (read-only)
               </button>
               {uploadError && <div style={{ color: C.error, fontSize: "0.75rem", marginTop: 8 }}>{uploadError}</div>}
               <p style={{ color: C.muted, fontSize: "0.7rem", margin: "8px 0 0", textAlign: "center" }}>PDF · Word · Excel · CSV · Text · max 25MB</p>
@@ -645,17 +654,49 @@ const ProjectDetail = () => {
 
           {/* CHAT */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {!isSheetMode && (
+              <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, backgroundColor: "rgba(245,158,11,0.08)", color: C.mutedLight, fontSize: "0.78rem", lineHeight: 1.55 }}>
+                {hasReadOnlySheetSource ? (
+                  <>
+                    <strong style={{ color: "#fbbf24" }}>Read-only sheet imported.</strong>{" "}
+                    To <strong style={{ color: C.text }}>edit</strong> a Google Sheet via chat, open{" "}
+                    <button type="button" onClick={() => setSettingsOpen(true)} style={{ background: "none", border: "none", padding: 0, color: C.accentText, cursor: "pointer", fontFamily: font, fontSize: "inherit", textDecoration: "underline" }}>Settings</button>
+                    {" "}→ link the sheet under <strong style={{ color: C.text }}>Sheet assistant</strong> (not the import button on the left).
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ color: "#fbbf24" }}>Chat mode is read-only.</strong>{" "}
+                    To edit a Google Sheet with prompts, open{" "}
+                    <button type="button" onClick={() => setSettingsOpen(true)} style={{ background: "none", border: "none", padding: 0, color: C.accentText, cursor: "pointer", fontFamily: font, fontSize: "inherit", textDecoration: "underline" }}>Settings</button>
+                    {" "}→ paste your sheet URL under <strong style={{ color: C.text }}>Sheet assistant</strong> → click <strong style={{ color: C.text }}>Link sheet</strong>.
+                  </>
+                )}
+              </div>
+            )}
+            {isSheetMode && bookingInfo?.serviceAccountEmail && (
+              <div style={{ padding: "8px 16px", borderBottom: `1px solid ${C.border}`, backgroundColor: C.accentDim, color: C.accentText, fontSize: "0.74rem", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <TableChart sx={{ fontSize: 15 }} />
+                <span><strong>Sheet assistant</strong> · live edits to {project.bookingSheet.sheetTitle || "linked sheet"}</span>
+                {project.bookingSheet.sheetUrl && (
+                  <a href={project.bookingSheet.sheetUrl} target="_blank" rel="noopener noreferrer" style={{ color: C.accentText, marginLeft: "auto" }}>Open sheet</a>
+                )}
+              </div>
+            )}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
               {messages.length === 0 && !thinking && (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", padding: "2rem" }}>
                   <img src={rivetLogo} alt="Rivet" style={{ width: 44, height: 44, borderRadius: 10, marginBottom: 12, opacity: 0.9 }} />
                   <div style={{ color: C.text, fontWeight: 600, fontSize: "1.05rem", marginBottom: 4 }}>
-                    {project.sources.length === 0 ? "Upload a file to get started" : "Ask anything about your data"}
+                    {isSheetMode
+                      ? "Edit your Google Sheet with chat"
+                      : project.sources.length === 0 ? "Upload a file to get started" : "Ask anything about your data"}
                   </div>
-                  <p style={{ color: C.muted, fontSize: "0.85rem", maxWidth: 380, lineHeight: 1.5, margin: 0 }}>
-                    {project.sources.length === 0
-                      ? "Add a PDF, Word, Excel, CSV, or text file from the left, then ask questions about its contents."
-                      : "I'll only use the content in your uploaded files. If something isn't there, I'll say so."}
+                  <p style={{ color: C.muted, fontSize: "0.85rem", maxWidth: 420, lineHeight: 1.5, margin: 0 }}>
+                    {isSheetMode
+                      ? 'Try: "List all tabs" · "Add a row to Leads with name John and email john@example.com" · "Update row 3 — set status to Done"'
+                      : project.sources.length === 0
+                        ? "Add a PDF, Word, Excel, CSV, or text file from the left, then ask questions about its contents."
+                        : "I'll only use the content in your uploaded files. If something isn't there, I'll say so."}
                   </p>
                 </div>
               )}
@@ -711,7 +752,10 @@ const ProjectDetail = () => {
               <form onSubmit={handleSend} style={{ display: "flex", alignItems: "center", gap: 10, backgroundColor: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "4px 8px 4px 14px" }}>
                 <TextField
                   fullWidth multiline maxRows={4} variant="standard"
-                  placeholder={project.sources.length === 0 ? "Upload a file to start asking questions…" : "Ask about your uploaded data…"}
+                  placeholder={isSheetMode
+                    ? "Add a row, update a cell, or ask about your live Google Sheet…"
+                    : project.sources.length === 0 ? "Upload a file to start asking questions…" : "Ask about your uploaded data…"}
+                  disabled={!isSheetMode && project.sources.length === 0}
                   value={input} onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
                   InputProps={{ disableUnderline: true, style: { color: C.text, fontFamily: font, fontSize: "0.9rem" } }}
@@ -723,7 +767,9 @@ const ProjectDetail = () => {
                 </button>
               </form>
               <p style={{ color: C.muted, fontSize: "0.7rem", textAlign: "center", marginTop: 6, marginBottom: 0 }}>
-                Strict source mode · {project.responseMode === "detailed" ? "Detailed answers" : "Short answers"}
+                {isSheetMode
+                  ? <>Sheet assistant · live Google Sheet · {project.responseMode === "detailed" ? "Detailed answers" : "Short answers"}</>
+                  : <>Read-only chat · {project.responseMode === "detailed" ? "Detailed answers" : "Short answers"}</>}
                 {(project.instructions || "").trim() && <> · <span style={{ color: C.accent }}>Custom role on</span></>}
               </p>
             </div>

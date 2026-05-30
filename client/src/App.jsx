@@ -29,8 +29,16 @@ const theme = createTheme({
 });
 
 const PrivateRoute = ({ children }) => {
-  return authService.isAuthenticated() ? children : <Navigate to="/login" />;
+  return authService.isAuthenticated() ? children : <Navigate to="/login" replace />;
 };
+
+const PublicRoute = ({ children }) => {
+  return authService.isAuthenticated() ? <Navigate to="/projects" replace /> : children;
+};
+
+const HomeRedirect = () => (
+  <Navigate to={authService.isAuthenticated() ? "/projects" : "/login"} replace />
+);
 
 const App = () => {
   return (
@@ -38,8 +46,9 @@ const App = () => {
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
@@ -74,7 +83,7 @@ const App = () => {
               </PrivateRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </Router>
     </ThemeProvider>

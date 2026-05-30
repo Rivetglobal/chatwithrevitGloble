@@ -1,8 +1,12 @@
 import axios from 'axios';
+import authService from './authService';
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL || '/api'}/projects`;
 
-const authHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+const authHeader = () => {
+  const token = authService.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 const projectService = {
   list: async () => {

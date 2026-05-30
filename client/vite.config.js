@@ -16,7 +16,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
-        target: "https://apirivetassist.rivetai.co.uk",
+        target: process.env.VITE_API_PROXY || "http://localhost:8000",
         changeOrigin: true,
       },
     },
