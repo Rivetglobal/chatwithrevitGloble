@@ -49,7 +49,9 @@ const Projects = () => {
         setUser(profile);
       } catch (e) {
         if (e?.response?.status === 401 || e?.response?.status === 403) {
-          authService.logout(); navigate("/login"); return;
+          await authService.logout();
+          navigate("/login", { replace: true });
+          return;
         }
       }
       try {
@@ -64,7 +66,11 @@ const Projects = () => {
     init();
   }, [navigate]);
 
-  const handleLogout = () => { authService.logout(); navigate("/login"); };
+  const handleLogout = async () => {
+    setAnchorEl(null);
+    await authService.logout();
+    navigate("/login", { replace: true });
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;

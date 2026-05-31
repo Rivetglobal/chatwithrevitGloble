@@ -75,17 +75,16 @@ const authService = {
   },
 
   logout: async () => {
-    const token = this.getToken();
-    try {
-      if (token) {
-        await axios.post(`${API_BASE_URL}/logout`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      }
-    } catch {
-      /* ignore — still clear local session */
-    }
+    const token = localStorage.getItem(TOKEN_KEY);
     this.clearSession();
+    if (!token) return;
+    try {
+      await axios.post(`${API_BASE_URL}/logout`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      /* local session already cleared */
+    }
   },
 
   getProfile: async () => {

@@ -96,7 +96,9 @@ const ProjectDetail = () => {
         setUser(profile);
       } catch (e) {
         if (e?.response?.status === 401 || e?.response?.status === 403) {
-          authService.logout(); navigate("/login"); return;
+          await authService.logout();
+          navigate("/login", { replace: true });
+          return;
         }
       }
       try {
@@ -172,7 +174,11 @@ const ProjectDetail = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
 
-  const handleLogout = () => { authService.logout(); navigate("/login"); };
+  const handleLogout = async () => {
+    setAnchorEl(null);
+    await authService.logout();
+    navigate("/login", { replace: true });
+  };
 
   const handleFile = async (file) => {
     if (!file) return;

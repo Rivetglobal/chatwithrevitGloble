@@ -248,7 +248,11 @@ const Chat = () => {
     } catch { /* ignore */ }
   };
 
-  const handleLogout = async () => { await authService.logout(); navigate("/login"); };
+  const handleLogout = async () => {
+    setAnchorEl(null);
+    await authService.logout();
+    navigate("/login", { replace: true });
+  };
 
   const focusInput = () => {
     setTimeout(() => inputRef.current?.focus(), 0);
