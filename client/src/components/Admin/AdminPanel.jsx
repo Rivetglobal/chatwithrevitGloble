@@ -184,7 +184,7 @@ const AdminPanel = () => {
           setInteg(DEFAULT_INTEG);
         }
       } catch (e) {
-        if (e?.response?.status === 401) { await authService.logout(); navigate("/login", { replace: true }); return; }
+        if (e?.response?.status === 401) { authService.logoutAndRedirect(navigate); return; }
         setError(e?.response?.data?.error || "Failed to load admin panel.");
       } finally {
         setLoading(false);

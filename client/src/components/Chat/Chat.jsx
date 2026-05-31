@@ -248,10 +248,9 @@ const Chat = () => {
     } catch { /* ignore */ }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setAnchorEl(null);
-    await authService.logout();
-    navigate("/login", { replace: true });
+    authService.logoutAndRedirect(navigate);
   };
 
   const focusInput = () => {

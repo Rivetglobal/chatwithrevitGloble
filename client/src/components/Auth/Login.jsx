@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import authService from "../../services/authService";
+import GoogleSignInBlock from "./GoogleSignInBlock";
+import { useGoogleSignIn } from "../../hooks/useGoogleSignIn";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
 
 const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -14,80 +14,16 @@ const Login = () => {
   const [remember, setRemember] = useState(() => localStorage.getItem("rememberMe") !== "false");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const googleBtnRef = useRef(null);
   const navigate = useNavigate();
+  const { googleBtnRef, googleLoading, googleConfigured } = useGoogleSignIn({
+    buttonText: "continue_with",
+    setError,
+  });
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
       navigate("/projects", { replace: true });
     }
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
-
-    let cancelled = false;
-
-    const handleGoogleCredential = async (response) => {
-      setGoogleLoading(true);
-      setError("");
-      try {
-        const res = await fetch(`${API_BASE}/auth/google`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential: response.credential, rememberMe: true }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Google sign-in failed");
-        authService.setSession(data.token, data.user, { remember: true });
-        navigate("/projects");
-      } catch (err) {
-        setError(err.message || "Google sign-in failed. Please try again.");
-        setGoogleLoading(false);
-      }
-    };
-
-    const initGoogle = () => {
-      if (cancelled || !googleBtnRef.current || !window.google?.accounts?.id) return false;
-      try {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredential,
-          auto_select: false,
-          use_fedcm_for_prompt: false,
-        });
-        googleBtnRef.current.innerHTML = "";
-        const width = Math.min(360, Math.max(200, googleBtnRef.current.offsetWidth || 320));
-        window.google.accounts.id.renderButton(googleBtnRef.current, {
-          type: "standard",
-          theme: "outline",
-          size: "large",
-          text: "continue_with",
-          shape: "rectangular",
-          logo_alignment: "left",
-          width,
-        });
-        return true;
-      } catch (err) {
-        console.error("Google Sign-In init failed:", err);
-        setError("Could not load Google sign-in. Check your Google Client ID and authorized origins.");
-        return false;
-      }
-    };
-
-    if (initGoogle()) return undefined;
-
-    const timer = setInterval(() => {
-      if (initGoogle()) clearInterval(timer);
-    }, 100);
-    const timeout = setTimeout(() => clearInterval(timer), 15000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-      clearTimeout(timeout);
-    };
   }, [navigate]);
 
   const handleChange = (e) => {
@@ -183,33 +119,11 @@ const Login = () => {
           Sign in to your account
         </p>
 
-        {/* Google SSO — official Google button */}
-        <div style={{ marginBottom: 10, position: "relative", minHeight: 40 }}>
-          {!GOOGLE_CLIENT_ID && (
-            <div style={{
-              padding: "10px 14px", background: "#fef3c7", border: "1px solid #fcd34d",
-              borderRadius: 10, color: "#92400e", fontSize: "0.82rem", textAlign: "center",
-            }}>
-              Google sign-in is not configured. Use email below.
-            </div>
-          )}
-          <div
-            ref={googleBtnRef}
-            style={{ display: "flex", justifyContent: "center", opacity: googleLoading ? 0.5 : 1, pointerEvents: googleLoading ? "none" : "auto" }}
-          />
-          {googleLoading && (
-            <div style={{ textAlign: "center", marginTop: 8, color: "#6b7280", fontSize: "0.8rem" }}>
-              Signing in with Google…
-            </div>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-          <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>or use email</span>
-          <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-        </div>
+        <GoogleSignInBlock
+          googleBtnRef={googleBtnRef}
+          googleLoading={googleLoading}
+          googleConfigured={googleConfigured}
+        />
 
         {error && (
           <div style={{

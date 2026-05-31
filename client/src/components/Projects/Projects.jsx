@@ -49,8 +49,7 @@ const Projects = () => {
         setUser(profile);
       } catch (e) {
         if (e?.response?.status === 401 || e?.response?.status === 403) {
-          await authService.logout();
-          navigate("/login", { replace: true });
+          authService.logoutAndRedirect(navigate);
           return;
         }
       }
@@ -66,10 +65,9 @@ const Projects = () => {
     init();
   }, [navigate]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setAnchorEl(null);
-    await authService.logout();
-    navigate("/login", { replace: true });
+    authService.logoutAndRedirect(navigate);
   };
 
   const handleCreate = async () => {

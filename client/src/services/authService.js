@@ -34,6 +34,33 @@ const authService = {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(REMEMBER_KEY);
+    // Legacy / duplicate keys some builds may have written
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  },
+
+  /** Clear JWT locally immediately; notify server in the background. */
+  signOut() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    this.clearSession();
+    if (!token) return;
+    axios.post(`${API_BASE_URL}/logout`, {}, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 4000,
+    }).catch(() => {});
+  },
+
+  logout: async () => {
+    this.signOut();
+  },
+
+  logoutAndRedirect(navigate, to = '/register') {
+    this.signOut();
+    if (typeof navigate === 'function') {
+      navigate(to, { replace: true });
+    } else if (typeof window !== 'undefined') {
+      window.location.replace(to);
+    }
   },
 
   getToken() {
@@ -72,19 +99,6 @@ const authService = {
       rememberMe,
     });
     return response.data;
-  },
-
-  logout: async () => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    this.clearSession();
-    if (!token) return;
-    try {
-      await axios.post(`${API_BASE_URL}/logout`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch {
-      /* local session already cleared */
-    }
   },
 
   getProfile: async () => {

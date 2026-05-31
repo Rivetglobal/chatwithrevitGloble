@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from "lucide-react";
 import authService from "../../services/authService";
+import GoogleSignInBlock from "./GoogleSignInBlock";
+import { useGoogleSignIn } from "../../hooks/useGoogleSignIn";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
 
 const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
@@ -26,6 +28,10 @@ const Register = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { googleBtnRef, googleLoading, googleConfigured } = useGoogleSignIn({
+    buttonText: "signup_with",
+    setError,
+  });
 
   useEffect(() => {
     if (authService.isAuthenticated()) {
@@ -122,9 +128,16 @@ const Register = () => {
         <h1 style={{ textAlign: "center", fontSize: "1.6rem", fontWeight: 700, color: "#111827", margin: "0 0 6px", letterSpacing: "-0.02em" }}>
           Create Account
         </h1>
-        <p style={{ textAlign: "center", fontSize: "0.9rem", color: "#6b7280", margin: "0 0 2rem" }}>
+        <p style={{ textAlign: "center", fontSize: "0.9rem", color: "#6b7280", margin: "0 0 1.25rem" }}>
           Join the NHS compliance platform
         </p>
+
+        <GoogleSignInBlock
+          googleBtnRef={googleBtnRef}
+          googleLoading={googleLoading}
+          googleConfigured={googleConfigured}
+          dividerLabel="or sign up with email"
+        />
 
         {error && (
           <div style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "10px 14px", color: "#ef4444", fontSize: "0.875rem", marginBottom: "1.25rem", textAlign: "center" }}>
