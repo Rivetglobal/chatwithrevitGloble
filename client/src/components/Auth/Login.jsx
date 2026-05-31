@@ -5,7 +5,8 @@ import authService from "../../services/authService";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
 
 const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -26,11 +27,13 @@ const Login = () => {
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
 
+    let cancelled = false;
+
     const handleGoogleCredential = async (response) => {
       setGoogleLoading(true);
       setError("");
       try {
-        const res = await fetch("/api/auth/google", {
+        const res = await fetch(`${API_BASE}/auth/google`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ credential: response.credential, rememberMe: true }),
@@ -46,34 +49,45 @@ const Login = () => {
     };
 
     const initGoogle = () => {
-      if (!window.google?.accounts?.id || !googleBtnRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredential,
-        auto_select: false,
-        use_fedcm_for_prompt: false,
-      });
-      googleBtnRef.current.innerHTML = "";
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        text: "continue_with",
-        shape: "rectangular",
-        logo_alignment: "left",
-        width: 360,
-      });
+      if (cancelled || !googleBtnRef.current || !window.google?.accounts?.id) return false;
+      try {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredential,
+          auto_select: false,
+          use_fedcm_for_prompt: false,
+        });
+        googleBtnRef.current.innerHTML = "";
+        const width = Math.min(360, Math.max(200, googleBtnRef.current.offsetWidth || 320));
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          logo_alignment: "left",
+          width,
+        });
+        return true;
+      } catch (err) {
+        console.error("Google Sign-In init failed:", err);
+        setError("Could not load Google sign-in. Check your Google Client ID and authorized origins.");
+        return false;
+      }
     };
 
-    if (window.google?.accounts?.id) {
-      initGoogle();
-    } else {
-      const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
-      if (script) {
-        script.addEventListener("load", initGoogle);
-        return () => script.removeEventListener("load", initGoogle);
-      }
-    }
+    if (initGoogle()) return undefined;
+
+    const timer = setInterval(() => {
+      if (initGoogle()) clearInterval(timer);
+    }, 100);
+    const timeout = setTimeout(() => clearInterval(timer), 15000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      clearTimeout(timeout);
+    };
   }, [navigate]);
 
   const handleChange = (e) => {
