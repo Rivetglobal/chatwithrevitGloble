@@ -1,0 +1,1 @@
+- [Sheet assistant live-data freshness](sheet-assistant-live-data.md) — "stale sheet" reports are prompt behavior (model answers from sample rows), not a cache; data pipeline is already live.
