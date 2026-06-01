@@ -658,6 +658,33 @@ const ProjectDetail = () => {
 
           {/* CHAT */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Quick mode switcher — change Project mode without opening Settings */}
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, backgroundColor: C.surface, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ color: C.muted, fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>Mode</span>
+              <div style={{ display: "inline-flex", padding: 2, backgroundColor: C.card, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                {[{ k: "chat", l: "Chat" }, { k: "booking", l: "Sheet assistant" }].map((opt) => {
+                  const active = (project.mode || "chat") === opt.k;
+                  const disabled = opt.k === "booking" && !project.bookingSheet;
+                  const btn = (
+                    <button key={opt.k}
+                      onClick={() => handleModeChange(opt.k)}
+                      disabled={disabled || active}
+                      style={{ padding: "5px 12px", borderRadius: 6, border: "none", backgroundColor: active ? C.accent : "transparent", color: active ? "#fff" : (disabled ? C.muted : C.mutedLight), cursor: disabled ? "not-allowed" : (active ? "default" : "pointer"), fontFamily: font, fontSize: "0.78rem", fontWeight: 600, opacity: disabled ? 0.6 : 1, transition: "background-color 0.15s, color 0.15s" }}
+                      onMouseEnter={(e) => { if (!active && !disabled) e.currentTarget.style.color = C.text; }}
+                      onMouseLeave={(e) => { if (!active && !disabled) e.currentTarget.style.color = C.mutedLight; }}
+                    >{opt.l}</button>
+                  );
+                  return disabled
+                    ? <Tooltip key={opt.k} title="Link a Google Sheet in Settings to enable"><span>{btn}</span></Tooltip>
+                    : btn;
+                })}
+              </div>
+              <Tooltip title="Open Settings">
+                <button onClick={() => setSettingsOpen(true)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.muted, display: "flex", padding: 4 }}>
+                  <Settings sx={{ fontSize: 16 }} />
+                </button>
+              </Tooltip>
+            </div>
             {!isSheetMode && (
               <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, backgroundColor: "rgba(245,158,11,0.08)", color: C.mutedLight, fontSize: "0.78rem", lineHeight: 1.55 }}>
                 {hasReadOnlySheetSource ? (
