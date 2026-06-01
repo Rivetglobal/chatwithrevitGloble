@@ -1017,11 +1017,8 @@ function describeSnapshotForPrompt(snapshot) {
   const lines = [`Spreadsheet: "${snapshot.sheetTitle || 'Untitled'}"`, `Tabs (${snapshot.tabs.length}):`];
   for (const t of snapshot.tabs.slice(0, 20)) {
     const cols = t.headers.length ? t.headers.map((h) => `"${h}"`).join(', ') : '(no header row)';
-    lines.push(`- "${t.name}" — columns: ${cols}`);
-    if (t.sampleRows?.length) {
-      const sample = t.sampleRows.slice(0, 2).map((r) => `[${r.map((c) => JSON.stringify(c)).join(', ')}]`).join(' ');
-      lines.push(`  sample rows: ${sample}`);
-    }
+    const count = Number.isFinite(t.sheetRowCount) ? ` — ~${t.sheetRowCount} data row(s)` : '';
+    lines.push(`- "${t.name}" — columns: ${cols}${count}`);
   }
   if (snapshot.tabs.length > 20) lines.push(`(...and ${snapshot.tabs.length - 20} more tabs — call list_tabs for full list)`);
   return lines.join('\n');
@@ -1064,10 +1061,11 @@ You have these tools:
 - update_row(tab_name, row_number, values): edit an existing row.
 
 CRITICAL — ALWAYS READ LIVE DATA BEFORE ANSWERING:
-- The "Live sheet structure" block above shows ONLY the column headers and at most 2-3 example rows. It is a structural preview, NOT the data. The real sheet may have hundreds of rows, and the user may have just added, edited, or deleted rows.
+- The "Live sheet structure" block above lists ONLY tab names and column headers. It contains NO row data on purpose. The real sheet may have hundreds of rows, and the user may have just added, edited, or deleted rows seconds ago.
+- You therefore have ZERO row data in context. The ONLY way to know any cell value is to call read_rows right now.
 - You MUST call read_rows to fetch the current data EVERY time the user asks anything about the sheet's contents — looking up a person/record, checking availability or status, counting, listing, summarizing, "does X exist", "what is Y", "is Z available", etc. Do this on every such turn, even if you answered a similar question earlier in the conversation — the sheet changes between messages.
-- NEVER answer a content/lookup question from the example rows in the structure block, from earlier tool results in this conversation, or from memory. Those are stale. Always re-read.
-- If read_rows returns no matching row, the record genuinely does not exist right now — say so plainly. Do not guess from the sample rows.
+- NEVER answer a content/lookup question from earlier tool results in this conversation or from memory. Those are stale. Always re-read live before every answer.
+- If read_rows returns no matching row, the record genuinely does not exist right now — say so plainly. Do not guess.
 - Use the filter argument to narrow large tabs (e.g. filter by a name or date), and raise limit if you might be missing rows. When in doubt, read the whole tab.
 
 How to behave:
@@ -1080,7 +1078,7 @@ How to behave:
 
 CRITICAL — row count rules:
 - Add EXACTLY ONE row per user request, unless the user explicitly asks for multiple ("add 3 rows", "add these two people", etc.). "Add Caroline" means one row, full stop.
-- The sample rows shown above are ONLY structural references. NEVER duplicate, mimic, mirror, or "pair" a sample row with the user's row.
+- NEVER duplicate, mimic, mirror, or "pair" an existing row with the user's row. Add only what the user explicitly asked for.
 - NEVER add test rows, placeholder rows, "auto-test" rows, "AGENT_TEST_*" rows, or any row the user did not explicitly ask for. These are forbidden even if similar rows already exist in the sheet.
 - Do not write strings starting with "+", "=", "-", or "@" into number/text columns unless the user explicitly provided that exact string; phone numbers should be written as plain digits or with a leading space to avoid spreadsheet formula errors.`;
 
