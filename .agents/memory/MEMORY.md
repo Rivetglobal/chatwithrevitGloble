@@ -1,1 +1,2 @@
 - [Sheet assistant live-data freshness](sheet-assistant-live-data.md) — "stale sheet" reports are prompt behavior (model answers from sample rows), not a cache; data pipeline is already live.
+- [Mongoose subdoc mutations](mongoose-subdoc-mutations.md) — use atomic updateOne/$pull (not findOne+save) for subdoc edits; save() re-validates whole doc & silently fails on legacy data. Also: admin = single isAdmin bool, baked into JWT.

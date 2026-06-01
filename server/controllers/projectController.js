@@ -154,20 +154,18 @@ function parseSheetUrl(rawUrl) {
   return null;
 }
 
-// Remove any frozen "snapshot" sources that point at the SAME Google Sheet
+// Identify any frozen "snapshot" sources that point at the SAME Google Sheet
 // the project currently has linked live in Sheet-assistant mode. The live
 // link is the single source of truth, so a static copy of the same sheet is
-// redundant and confusing. Mutates project.sources; returns count removed.
-function pruneLinkedSheetDuplicates(project) {
+// redundant and confusing. Returns an array of the duplicate source _ids
+// (does NOT mutate the project).
+function findLinkedSheetDuplicateIds(project) {
   const liveId = project?.bookingSheet?.sheetId;
   const isSheetMode = project?.mode === 'booking' || project?.mode === 'sheet';
-  if (!liveId || !isSheetMode || !Array.isArray(project.sources)) return 0;
-  const before = project.sources.length;
-  project.sources = project.sources.filter((s) => {
-    if (!s.sourceUrl) return true; // uploaded files are never duplicates
-    return sheetsUtil.parseSheetId(s.sourceUrl) !== liveId;
-  });
-  return before - project.sources.length;
+  if (!liveId || !isSheetMode || !Array.isArray(project.sources)) return [];
+  return project.sources
+    .filter((s) => s.sourceUrl && sheetsUtil.parseSheetId(s.sourceUrl) === liveId)
+    .map((s) => s._id);
 }
 
 // Allowlist of hosts we're willing to download from after redirects (SSRF
@@ -398,9 +396,20 @@ exports.getProject = async (req, res) => {
 
     // Self-heal: if a live sheet is linked, drop any redundant frozen copy of
     // that same sheet so the UI only ever shows the single live connection.
-    if (pruneLinkedSheetDuplicates(project) > 0) {
-      project.updatedAt = new Date();
-      await project.save();
+    // Use an atomic $pull (never a full re-save) so a legacy/oversized field
+    // elsewhere in the doc can't make loading the project fail.
+    const dupIds = findLinkedSheetDuplicateIds(project);
+    if (dupIds.length) {
+      try {
+        await Project.updateOne(
+          { _id: project._id },
+          { $pull: { sources: { _id: { $in: dupIds } } }, $set: { updatedAt: new Date() } },
+        );
+        const dupSet = new Set(dupIds.map(String));
+        project.sources = project.sources.filter((s) => !dupSet.has(String(s._id)));
+      } catch (healErr) {
+        console.error('getProject self-heal error:', healErr);
+      }
     }
 
     const sources = project.sources.map((s) => ({
@@ -780,7 +789,10 @@ exports.linkBookingSheet = async (req, res) => {
     project.mode = 'booking';
     // Drop any frozen snapshot copy of this same sheet — the live link is now
     // the single source of truth.
-    pruneLinkedSheetDuplicates(project);
+    const dupSet = new Set(findLinkedSheetDuplicateIds(project).map(String));
+    if (dupSet.size) {
+      project.sources = project.sources.filter((s) => !dupSet.has(String(s._id)));
+    }
     project.updatedAt = new Date();
     await project.save();
 
@@ -869,15 +881,23 @@ exports.unlinkBookingSheet = async (req, res) => {
 
 exports.deleteSource = async (req, res) => {
   try {
-    const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!isValidId(req.params.id)) return res.status(400).json({ error: 'Invalid project id' });
+    if (!isValidId(req.params.sourceId)) return res.status(400).json({ error: 'Invalid source id' });
 
-    const before = project.sources.length;
-    project.sources = project.sources.filter((s) => String(s._id) !== req.params.sourceId);
-    if (project.sources.length === before) return res.status(404).json({ error: 'Source not found' });
+    // Atomic $pull so we never re-validate (or re-save) the entire project
+    // document. A legacy/oversized field elsewhere in the doc would otherwise
+    // make project.save() throw and silently break deletion. The source _id is
+    // part of the query so matchedCount===0 cleanly means "not found" (project
+    // missing OR source missing) — we can't rely on modifiedCount because the
+    // $set on updatedAt would mark the doc modified regardless.
+    const result = await Project.updateOne(
+      { _id: req.params.id, userId: req.userId, 'sources._id': req.params.sourceId },
+      { $pull: { sources: { _id: req.params.sourceId } }, $set: { updatedAt: new Date() } },
+    );
 
-    project.updatedAt = new Date();
-    await project.save();
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Project or source not found' });
+    }
     res.json({ message: 'Source deleted' });
   } catch (e) {
     console.error('deleteSource error:', e);
