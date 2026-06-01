@@ -154,6 +154,22 @@ function parseSheetUrl(rawUrl) {
   return null;
 }
 
+// Remove any frozen "snapshot" sources that point at the SAME Google Sheet
+// the project currently has linked live in Sheet-assistant mode. The live
+// link is the single source of truth, so a static copy of the same sheet is
+// redundant and confusing. Mutates project.sources; returns count removed.
+function pruneLinkedSheetDuplicates(project) {
+  const liveId = project?.bookingSheet?.sheetId;
+  const isSheetMode = project?.mode === 'booking' || project?.mode === 'sheet';
+  if (!liveId || !isSheetMode || !Array.isArray(project.sources)) return 0;
+  const before = project.sources.length;
+  project.sources = project.sources.filter((s) => {
+    if (!s.sourceUrl) return true; // uploaded files are never duplicates
+    return sheetsUtil.parseSheetId(s.sourceUrl) !== liveId;
+  });
+  return before - project.sources.length;
+}
+
 // Allowlist of hosts we're willing to download from after redirects (SSRF
 // defense). Google may redirect through googleusercontent.com; OneDrive's
 // shares API typically redirects through *.1drv.com or *.sharepoint.com.
@@ -380,6 +396,13 @@ exports.getProject = async (req, res) => {
     const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
+    // Self-heal: if a live sheet is linked, drop any redundant frozen copy of
+    // that same sheet so the UI only ever shows the single live connection.
+    if (pruneLinkedSheetDuplicates(project) > 0) {
+      project.updatedAt = new Date();
+      await project.save();
+    }
+
     const sources = project.sources.map((s) => ({
       _id: s._id,
       originalName: s.originalName,
@@ -567,6 +590,17 @@ exports.addSourceLink = async (req, res) => {
       });
     }
 
+    // Don't create a frozen snapshot of a sheet that's already linked live in
+    // Sheet-assistant mode — that would show the same sheet twice. The live
+    // link already reads this sheet in real time.
+    const liveId = project.bookingSheet?.sheetId;
+    const isSheetMode = project.mode === 'booking' || project.mode === 'sheet';
+    if (liveId && isSheetMode && sheetsUtil.parseSheetId(rawUrl) === liveId) {
+      return res.status(400).json({
+        error: 'This sheet is already connected live in Sheet assistant mode, so it reads in real time — no need to import a separate copy.',
+      });
+    }
+
     let buffer;
     try {
       buffer = await fetchSheetXlsx(parsed.downloadUrl, parsed.provider);
@@ -744,6 +778,9 @@ exports.linkBookingSheet = async (req, res) => {
       validatedAt: new Date(),
     };
     project.mode = 'booking';
+    // Drop any frozen snapshot copy of this same sheet — the live link is now
+    // the single source of truth.
+    pruneLinkedSheetDuplicates(project);
     project.updatedAt = new Date();
     await project.save();
 
