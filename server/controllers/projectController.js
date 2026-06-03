@@ -1507,9 +1507,34 @@ exports.chat = async (req, res) => {
       });
     }
 
+    // Re-fetch any sheet sources that have a live URL so the AI always sees
+    // the latest data instead of a stale snapshot stored in the DB.
+    const liveSources = await Promise.all(
+      project.sources.map(async (src) => {
+        if (!src.sourceUrl) return src;
+        const parsed = parseSheetUrl(src.sourceUrl);
+        if (!parsed) return src;
+        try {
+          const buffer = await fetchSheetXlsx(parsed.downloadUrl, parsed.provider);
+          const freshSheets = parseWorkbook(buffer);
+          // Return a plain object that matches what buildSourceContext expects
+          return {
+            _id: src._id,
+            originalName: src.originalName,
+            kind: 'spreadsheet',
+            sourceUrl: src.sourceUrl,
+            sheets: freshSheets,
+          };
+        } catch (refreshErr) {
+          console.warn(`[chat] Could not refresh sheet source "${src.originalName}":`, refreshErr.message);
+          return src; // fall back to the cached snapshot
+        }
+      })
+    );
+
     const speed = project.responseSpeed || 'fast';
     const ctxLimit = speed === 'deep' ? 80000 : speed === 'medium' ? 50000 : 30000;
-    const sourceContext = buildSourceContext(project.sources, ctxLimit);
+    const sourceContext = buildSourceContext(liveSources, ctxLimit);
 
     const detail = project.responseMode === 'detailed'
       ? 'Provide a clear, complete answer with brief reasoning when helpful. Keep it focused.'

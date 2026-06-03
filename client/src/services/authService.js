@@ -51,7 +51,7 @@ const authService = {
   },
 
   logout: async () => {
-    this.signOut();
+    authService.signOut();
   },
 
   logoutAndRedirect(navigate, to = '/register') {
@@ -102,7 +102,7 @@ const authService = {
   },
 
   getProfile: async () => {
-    const token = this.getToken();
+    const token = authService.getToken();
     if (!token) throw new Error('Not authenticated');
     const response = await axios.get(`${API_BASE_URL}/profile`, {
       headers: { Authorization: `Bearer ${token}` },
