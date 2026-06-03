@@ -70,3 +70,15 @@ externalPort = 8000
 deploymentTarget = "autoscale"
 run = ["node", "server/index.js"]
 build = ["bash", "-c", "cd client && npm install && npm run build"]
+
+[userenv]
+
+[userenv.shared]
+API_URL = "https://apirivetassist.rivetai.co.uk"
+GEMINI_MODEL = "gemini-2.5-flash"
+GOOGLE_CLIENT_ID = "916291185270-seit0vqs7e5imd8v8cu8m9eu8t9cpsta.apps.googleusercontent.com"
+MAIL_FROM_ADDRESS = "noreply@rivetglobal.net"
+MAIL_FROM_NAME = "Rivet AI"
+PORT = "8000"
+TEST_ZEPTO_TO = "pretamram0@gmail.com"
+ZEPTOMAIL_URL = "https://api.zeptomail.in/v1.1/email"
