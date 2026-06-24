@@ -7,6 +7,18 @@ const AppSettings = require('../models/AppSettings');
 let cache = { ts: 0, gemini: null, openai: null };
 const TTL_MS = 30_000;
 
+// Returns true when a Gemini error is transient/recoverable — quota exhausted,
+// billing issue, service unavailable, rate-limit. These are the cases where
+// falling back to OpenAI makes sense. Auth errors (bad key) are also included
+// so a misconfigured Gemini key never fully blocks the app.
+function isGeminiUnavailableError(err) {
+  if (!err) return false;
+  const status = err?.status ?? err?.httpErrorCode ?? err?.code;
+  if ([401, 403, 429, 500, 502, 503, 504].includes(Number(status))) return true;
+  const msg = (err?.message || err?.toString() || '').toLowerCase();
+  return /quota|billing|rate.?limit|resource.?exhausted|overload|capacity|too many|service.?unavailable|unavailable|forbidden|invalid.?api.?key|api.?key/i.test(msg);
+}
+
 async function loadKeys() {
   const now = Date.now();
   if (cache.ts && now - cache.ts < TTL_MS) return cache;
@@ -36,6 +48,13 @@ async function getActiveGenAI() {
 async function getActiveOpenAIKey() {
   const { openai } = await loadKeys();
   return openai || null;
+}
+
+async function getOpenAIClient() {
+  const { openai } = await loadKeys();
+  if (!openai) return null;
+  const { OpenAI } = require('openai');
+  return new OpenAI({ apiKey: openai });
 }
 
 // Returns metadata about which keys are present, for the admin UI.
@@ -76,5 +95,7 @@ module.exports = {
   bustCache,
   getActiveGenAI,
   getActiveOpenAIKey,
+  getOpenAIClient,
   getKeyStatus,
+  isGeminiUnavailableError,
 };

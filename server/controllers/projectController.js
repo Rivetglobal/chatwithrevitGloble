@@ -958,6 +958,19 @@ const SHEET_TOOLS = [{
   ],
 }];
 
+// OpenAI-format tool definitions (mirrors SHEET_TOOLS / BOOKING_TOOLS above)
+const SHEET_TOOLS_OAI = [
+  { type: 'function', function: { name: 'list_tabs', description: 'List every tab in the connected spreadsheet with headers, row count, and sample rows.', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'read_rows', description: 'Read rows from a specific tab. Optional filter is a header->substring map.', parameters: { type: 'object', properties: { tab_name: { type: 'string' }, filter: { type: 'object' }, limit: { type: 'number' } }, required: ['tab_name'] } } },
+  { type: 'function', function: { name: 'add_row', description: 'Append a new row. values keys must be column header names.', parameters: { type: 'object', properties: { tab_name: { type: 'string' }, values: { type: 'object' } }, required: ['tab_name', 'values'] } } },
+  { type: 'function', function: { name: 'update_row', description: 'Update cells in an existing row by row_number (1-based).', parameters: { type: 'object', properties: { tab_name: { type: 'string' }, row_number: { type: 'number' }, values: { type: 'object' } }, required: ['tab_name', 'row_number', 'values'] } } },
+];
+
+const BOOKING_TOOLS_OAI = [
+  { type: 'function', function: { name: 'check_availability', description: 'Read the booking sheet and return currently free slots. Call before booking.', parameters: { type: 'object', properties: { date: { type: 'string' }, time: { type: 'string' }, location: { type: 'string' } } } } },
+  { type: 'function', function: { name: 'book_slot', description: 'Reserve a slot. Requires date, time, and name.', parameters: { type: 'object', properties: { date: { type: 'string' }, time: { type: 'string' }, name: { type: 'string' }, phone: { type: 'string' }, email: { type: 'string' }, location: { type: 'string' } }, required: ['date', 'time', 'name'] } } },
+];
+
 function summarizeAvailability(rows, filter = {}, settings = {}) {
   const free = rows.filter(sheetsUtil.isSlotFree);
   let filtered = free;
@@ -1186,6 +1199,51 @@ CRITICAL — row count rules:
 
   const text = (result?.response?.text?.() || '').trim();
   return text || 'Sorry, I could not generate a response.';
+}
+
+async function runSheetTurnOpenAI({ project, message, history }) {
+  const openai = await aiClients.getOpenAIClient();
+  if (!openai) throw new Error('OpenAI API key not configured. Add OPENAI_API_KEY in the admin panel.');
+  const oaiModel = process.env.OPENAI_MODEL || 'gpt-4o';
+
+  const sheetId = project.bookingSheet.sheetId;
+  const settingsTabName = project.bookingSheet.settingsTabName || '';
+  let settings = {};
+  try { settings = await sheetsUtil.readSettings(sheetId, settingsTabName); } catch (_) {}
+  let snapshot = project.bookingSheet.snapshot || null;
+  try { snapshot = await sheetsUtil.getSpreadsheetSnapshot(sheetId, { sampleRows: 3 }); } catch (_) {}
+
+  const settingsBlock = Object.keys(settings).length
+    ? `Settings:\n${Object.entries(settings).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`
+    : '';
+  const ownerInstructions = (project.instructions || '').trim();
+
+  const baseSystem = `You are an AI assistant connected directly to a Google Sheet titled "${snapshot?.sheetTitle || project.bookingSheet.sheetTitle || 'Untitled'}".
+
+Live sheet structure:\n${describeSnapshotForPrompt(snapshot)}\n\n${settingsBlock}\n${ownerInstructions ? `Owner instructions:\n"""${ownerInstructions.slice(0, 2000)}"""\n` : ''}You have tools: list_tabs, read_rows, add_row, update_row. ALWAYS call read_rows before answering about data — never guess. Add EXACTLY ONE row per request unless the user asks for more.`;
+
+  const safeHistory = (Array.isArray(history) ? history : []).slice(-10)
+    .map((m) => { const role = m?.role === 'assistant' ? 'assistant' : m?.role === 'user' ? 'user' : null; const content = typeof m?.content === 'string' ? m.content.slice(0, 4000) : ''; return role && content ? { role, content } : null; })
+    .filter(Boolean);
+
+  const messages = [{ role: 'system', content: baseSystem }, ...safeHistory, { role: 'user', content: String(message).slice(0, 4000) }];
+
+  let response = await openai.chat.completions.create({ model: oaiModel, messages, tools: SHEET_TOOLS_OAI, temperature: 0.2, max_tokens: 1024 });
+  messages.push(response.choices[0].message);
+
+  for (let i = 0; i < 6; i++) {
+    const toolCalls = response.choices[0].message.tool_calls;
+    if (!toolCalls?.length) break;
+    for (const call of toolCalls) {
+      let out;
+      try { out = await executeSheetTool(call.function.name, JSON.parse(call.function.arguments || '{}'), project); }
+      catch (err) { out = { error: err.message || 'Tool failed.' }; }
+      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(out) });
+    }
+    response = await openai.chat.completions.create({ model: oaiModel, messages, tools: SHEET_TOOLS_OAI, temperature: 0.2, max_tokens: 1024 });
+    messages.push(response.choices[0].message);
+  }
+  return (response.choices[0].message.content || '').trim() || 'Sorry, I could not generate a response.';
 }
 
 function bookingSchemaFromProject(project) {
@@ -1427,6 +1485,48 @@ ${slotDuration ? `7. Standard slot length: ${slotDuration}.\n` : ''}${businessHo
   return text || 'Sorry, I could not generate a response.';
 }
 
+async function runBookingTurnOpenAI({ project, message, history }) {
+  const openai = await aiClients.getOpenAIClient();
+  if (!openai) throw new Error('OpenAI API key not configured. Add OPENAI_API_KEY in the admin panel.');
+  const oaiModel = process.env.OPENAI_MODEL || 'gpt-4o';
+
+  const sheetId = project.bookingSheet.sheetId;
+  const settingsTabName = project.bookingSheet.settingsTabName || '';
+  let settings = {};
+  try { settings = await sheetsUtil.readSettings(sheetId, settingsTabName); } catch (_) {}
+
+  const customSystem = (settings.system_prompt || project.instructions || '').trim();
+  const bookedResponse = (settings.booked_response || '').trim();
+  const confirmResponse = (settings.confirm_response || '').trim();
+  const slotDuration = (settings.slot_duration || '').trim();
+  const businessHours = (settings.business_hours || '').trim();
+
+  const baseSystem = `You are a booking assistant for "${project.name}". Help users find and book available slots in a live Google Sheet. NEVER invent slots — always call check_availability first. Before booking you MUST have date, time, and name.${slotDuration ? ` Slot length: ${slotDuration}.` : ''}${businessHours ? ` Business hours: ${businessHours}.` : ''}${confirmResponse ? `\nBooking confirmed template:\n"""${confirmResponse}"""` : ''}${bookedResponse ? `\nSlot already booked template:\n"""${bookedResponse}"""` : ''}${customSystem ? `\nOwner instructions:\n"""${customSystem.slice(0, 2000)}"""` : ''}`;
+
+  const safeHistory = (Array.isArray(history) ? history : []).slice(-10)
+    .map((m) => { const role = m?.role === 'assistant' ? 'assistant' : m?.role === 'user' ? 'user' : null; const content = typeof m?.content === 'string' ? m.content.slice(0, 4000) : ''; return role && content ? { role, content } : null; })
+    .filter(Boolean);
+
+  const messages = [{ role: 'system', content: baseSystem }, ...safeHistory, { role: 'user', content: String(message).slice(0, 4000) }];
+
+  let response = await openai.chat.completions.create({ model: oaiModel, messages, tools: BOOKING_TOOLS_OAI, temperature: 0.2, max_tokens: 1024 });
+  messages.push(response.choices[0].message);
+
+  for (let i = 0; i < 5; i++) {
+    const toolCalls = response.choices[0].message.tool_calls;
+    if (!toolCalls?.length) break;
+    for (const call of toolCalls) {
+      let out;
+      try { out = await executeBookingTool(call.function.name, JSON.parse(call.function.arguments || '{}'), project, settings); }
+      catch (err) { out = { error: err.message || 'Tool failed.' }; }
+      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(out) });
+    }
+    response = await openai.chat.completions.create({ model: oaiModel, messages, tools: BOOKING_TOOLS_OAI, temperature: 0.2, max_tokens: 1024 });
+    messages.push(response.choices[0].message);
+  }
+  return (response.choices[0].message.content || '').trim() || 'Sorry, I could not generate a response.';
+}
+
 exports.chat = async (req, res) => {
   try {
     const { message, history = [], conversationId: incomingConvId } = req.body;
@@ -1453,9 +1553,9 @@ exports.chat = async (req, res) => {
       }
     }
 
-    const _activeKey = (await aiClients.loadKeys()).gemini;
-    if (!_activeKey) {
-      return res.status(500).json({ error: 'AI is not configured. Add a Gemini API key in the admin panel or GEMINI_API_KEY env var.' });
+    const keys = await aiClients.loadKeys();
+    if (!keys.gemini && !keys.openai) {
+      return res.status(500).json({ error: 'AI is not configured. Add a Gemini or OpenAI API key in the admin panel.' });
     }
 
     // ---- BOOKING MODE branch -------------------------------------------
@@ -1464,7 +1564,14 @@ exports.chat = async (req, res) => {
     if ((project.mode === 'booking' || project.mode === 'sheet') && project.bookingSheet?.sheetId) {
       let response;
       try {
-        response = await runSheetTurn({ project, message, history });
+        try {
+          response = await runSheetTurn({ project, message, history });
+        } catch (geminiErr) {
+          if (aiClients.isGeminiUnavailableError(geminiErr)) {
+            console.warn(`[project/sheet] Gemini unavailable (${geminiErr?.status || geminiErr?.message}), falling back to OpenAI…`);
+            response = await runSheetTurnOpenAI({ project, message, history });
+          } else { throw geminiErr; }
+        }
       } catch (err) {
         console.error('booking chat error:', err);
         return res.status(500).json({ error: err.message || 'Failed to handle the booking conversation.' });
@@ -1575,27 +1682,43 @@ Rules (follow EXACTLY):
       parts: [{ text: m.content }],
     }));
 
-    const activeGenAI = await aiClients.getActiveGenAI();
-    if (!activeGenAI) {
-      return res.status(500).json({ error: 'AI is not configured. Add a Gemini API key in the admin panel or GEMINI_API_KEY env var.' });
-    }
-    const model = activeGenAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-      systemInstruction: systemPrompt,
-      generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
-    });
-
     let response = '';
     try {
+      const activeGenAI = await aiClients.getActiveGenAI();
+      if (!activeGenAI) throw Object.assign(new Error('Gemini API key not configured.'), { status: 401 });
+      const model = activeGenAI.getGenerativeModel({
+        model: GEMINI_MODEL,
+        systemInstruction: systemPrompt,
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+      });
       const chat = model.startChat({ history: geminiHistory });
       const result = await chat.sendMessage(String(message).slice(0, 4000));
       response = (result?.response?.text?.() || '').trim() || 'Not available in provided source';
-    } catch (err) {
-      console.error('Gemini error:', err?.status || '', err?.message || err);
-      const friendly = err?.status === 401 || err?.status === 403 || /api key/i.test(err?.message || '')
-        ? 'AI key is invalid. Please update GEMINI_API_KEY.'
-        : 'Failed to get a response from the AI.';
-      return res.status(500).json({ error: friendly });
+    } catch (geminiErr) {
+      if (aiClients.isGeminiUnavailableError(geminiErr)) {
+        console.warn(`[project/source] Gemini unavailable (${geminiErr?.status || geminiErr?.message}), falling back to OpenAI…`);
+        try {
+          const openai = await aiClients.getOpenAIClient();
+          if (!openai) throw new Error('OpenAI API key not configured. Add OPENAI_API_KEY in the admin panel.');
+          const oaiModel = process.env.OPENAI_MODEL || 'gpt-4o';
+          const oaiMessages = [
+            { role: 'system', content: systemPrompt },
+            ...safeHistory.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
+            { role: 'user', content: String(message).slice(0, 4000) },
+          ];
+          const oaiResp = await openai.chat.completions.create({ model: oaiModel, messages: oaiMessages, temperature: 0.1, max_tokens: 2048 });
+          response = (oaiResp.choices[0]?.message?.content || '').trim() || 'Not available in provided source';
+        } catch (oaiErr) {
+          console.error('OpenAI fallback error:', oaiErr?.message || oaiErr);
+          return res.status(500).json({ error: oaiErr.message || 'Failed to get a response from AI (both Gemini and OpenAI failed).' });
+        }
+      } else {
+        console.error('Gemini error:', geminiErr?.status || '', geminiErr?.message || geminiErr);
+        const friendly = geminiErr?.status === 401 || geminiErr?.status === 403 || /api key/i.test(geminiErr?.message || '')
+          ? 'AI key is invalid. Please update GEMINI_API_KEY.'
+          : 'Failed to get a response from the AI.';
+        return res.status(500).json({ error: friendly });
+      }
     }
 
     // Persist the turn. Create the conversation lazily on the very first

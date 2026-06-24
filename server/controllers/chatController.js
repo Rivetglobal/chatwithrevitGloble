@@ -86,10 +86,12 @@ Compliance House: "I hear you. It's important to protect your registration and y
 
 How does that sound? 🏥"`;
 
-async function runWorkflow(inputText, previousMessages = []) {
+async function runWorkflowGemini(inputText, previousMessages = []) {
   const activeGenAI = await aiClients.getActiveGenAI();
   if (!activeGenAI) {
-    throw new Error("Gemini API key not configured. Set it in the admin panel.");
+    const err = new Error("Gemini API key not configured. Set it in the admin panel.");
+    err.status = 401;
+    throw err;
   }
 
   const geminiHistory = previousMessages
@@ -118,6 +120,37 @@ async function runWorkflow(inputText, previousMessages = []) {
   }
 
   return { output_text: text };
+}
+
+async function runWorkflowOpenAI(inputText, previousMessages = []) {
+  const openai = await aiClients.getOpenAIClient();
+  if (!openai) {
+    throw new Error("OpenAI API key not configured. Add OPENAI_API_KEY in the admin panel or environment.");
+  }
+  const model = process.env.OPENAI_MODEL || "gpt-4o";
+  const messages = [
+    { role: "system", content: COMPLIANCE_HOUSE_INSTRUCTIONS },
+    ...previousMessages
+      .filter((m) => m && typeof m.content === "string" && m.content.trim().length > 0)
+      .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, 8000) })),
+    { role: "user", content: String(inputText).slice(0, 8000) },
+  ];
+  const response = await openai.chat.completions.create({ model, messages, temperature: 0.7, max_tokens: 2048 });
+  const text = (response.choices[0]?.message?.content || "").trim();
+  if (!text) throw new Error("Empty response from OpenAI");
+  return { output_text: text };
+}
+
+async function runWorkflow(inputText, previousMessages = []) {
+  try {
+    return await runWorkflowGemini(inputText, previousMessages);
+  } catch (geminiErr) {
+    if (aiClients.isGeminiUnavailableError(geminiErr)) {
+      console.warn(`[chat] Gemini unavailable (${geminiErr?.status || geminiErr?.message}), falling back to OpenAI…`);
+      return await runWorkflowOpenAI(inputText, previousMessages);
+    }
+    throw geminiErr;
+  }
 }
 
 exports.sendMessage = async (req, res) => {
