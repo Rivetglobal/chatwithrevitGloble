@@ -15,8 +15,6 @@ const STATUS_COPY = {
   error: "Something went wrong",
 };
 
-const WF_STORAGE_KEY = "rivet.voice.workflowId";
-
 function voiceLabel(voice) {
   if (!voice) return "";
   const name = voice.name || voice.voiceId;
@@ -28,8 +26,6 @@ function voiceLabel(voice) {
 const VoiceMode = ({ user }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
-  const [workflows, setWorkflows] = useState([]);
-  const [workflowId, setWorkflowId] = useState("");
   const [phase, setPhase] = useState("idle");
   const [error, setError] = useState("");
   const [workflowName, setWorkflowName] = useState("");
@@ -48,21 +44,7 @@ const VoiceMode = ({ user }) => {
     (async () => {
       try {
         const data = await voiceService.getStatus();
-        if (cancelled) return;
-        setStatus(data);
-        if (!data?.apiKeyConfigured && !data?.configured) return;
-        try {
-          const listed = await voiceService.listWorkflows();
-          if (cancelled) return;
-          const items = listed.workflows || [];
-          setWorkflows(items);
-          const stored = localStorage.getItem(WF_STORAGE_KEY) || "";
-          const preferred = stored || data.workflowId || listed.defaultWorkflowId || (items[0] ? String(items[0].id) : "");
-          const exists = items.some((w) => String(w.id) === String(preferred) || w.uuid === preferred);
-          setWorkflowId(exists ? String(items.find((w) => String(w.id) === String(preferred) || w.uuid === preferred).id) : (items[0] ? String(items[0].id) : preferred));
-        } catch (listErr) {
-          if (!cancelled) setError(listErr?.response?.data?.error || "Could not load DubCall workflows.");
-        }
+        if (!cancelled) setStatus(data);
       } catch (err) {
         if (!cancelled) setError(err?.response?.data?.error || "Could not load voice status.");
       }
@@ -89,34 +71,14 @@ const VoiceMode = ({ user }) => {
 
   useEffect(() => () => teardown(), [teardown]);
 
-  const changeWorkflow = (nextId) => {
-    setWorkflowId(nextId);
-    try { localStorage.setItem(WF_STORAGE_KEY, String(nextId)); } catch { /* ignore */ }
-    const picked = workflows.find((w) => String(w.id) === String(nextId));
-    if (picked) setWorkflowName(picked.name || "");
-    if (liveRef.current && nextId) {
-      teardown();
-      setLive(false);
-      setPhase("idle");
-    }
-  };
-
-  const startCall = async (id = workflowId) => {
+  const startCall = async () => {
     setError("");
-    if (!id) {
-      setError("Pick a workflow, then start.");
-      setLive(false);
-      setPhase("idle");
-      return;
-    }
-    try { localStorage.setItem(WF_STORAGE_KEY, String(id)); } catch { /* ignore */ }
     setPhase("connecting");
     setLive(true);
-    liveRef.current = true;
     teardown();
     liveRef.current = true;
     try {
-      const session = await voiceService.createSession(id);
+      const session = await voiceService.createSession();
       if (!liveRef.current) return;
       setWorkflowName(session?.workflow?.name || "");
       setVoiceName(voiceLabel(session?.voice));
@@ -125,7 +87,7 @@ const VoiceMode = ({ user }) => {
         throw new Error(
           session?.error
           || session?.embedError
-          || "DubCall is not ready for live voice. Re-save the API key in Admin → DubCall AI.",
+          || "DubCall is not ready for live voice. An admin must save the API key and workflow UID in Admin → DubCall AI.",
         );
       }
 
@@ -170,13 +132,21 @@ const VoiceMode = ({ user }) => {
     }
   };
 
-  const configured = !!status?.configured;
+  const apiReady = !!(status?.apiKeyConfigured || status?.configured);
+  const workflowReady = !!status?.workflowId;
+  const ready = apiReady && workflowReady;
   const orbClass = [
     "rv-voice-orb",
     phase === "listening" ? "is-listening" : "",
     phase === "speaking" ? "is-speaking" : "",
     phase === "connecting" ? "is-thinking" : "",
   ].filter(Boolean).join(" ");
+
+  let idleCopy = "Ask an administrator to connect DubCall in Admin.";
+  if (user?.isAdmin && !apiReady) idleCopy = "Save the DubCall API key and workflow UID in Admin.";
+  else if (user?.isAdmin && !workflowReady) idleCopy = "Choose the voice workflow UID in Admin → DubCall AI, then come back here.";
+  else if (apiReady && !workflowReady) idleCopy = "Ask an administrator to set the voice workflow in Admin.";
+  else if (ready) idleCopy = "Tap start to talk. The agent uses the DubCall workflow set by your admin.";
 
   return (
     <div style={{
@@ -226,9 +196,8 @@ const VoiceMode = ({ user }) => {
           {STATUS_COPY[phase] || STATUS_COPY.idle}
         </h2>
         <p style={{ margin: "8px 0 0", color: C.muted, fontSize: "0.88rem", lineHeight: 1.55 }}>
-          {!configured && "An admin only needs to save a DubCall API key. Then pick any workflow here — no extra setup."}
-          {configured && !live && "Pick any DubCall workflow, then start. The agent speaks with its DubCall voice."}
-          {configured && live && (
+          {!live && idleCopy}
+          {live && (
             <>
               {workflowName ? `Live on ${workflowName}` : "DubCall voice is live"}
               {runId ? ` · run #${runId}` : ""}
@@ -237,47 +206,6 @@ const VoiceMode = ({ user }) => {
           )}
         </p>
       </div>
-
-      {(configured || workflows.length > 0) && (
-        <label style={{
-          marginTop: 22,
-          width: "100%",
-          maxWidth: 420,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          textAlign: "left",
-        }}>
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: C.muted, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            Workflow
-          </span>
-          <select
-            value={workflowId}
-            onChange={(e) => changeWorkflow(e.target.value)}
-            disabled={phase === "connecting"}
-            style={{
-              width: "100%",
-              padding: "11px 12px",
-              borderRadius: 10,
-              border: `1px solid ${C.border}`,
-              background: C.surface,
-              color: C.text,
-              fontFamily: font,
-              fontSize: "0.92rem",
-              fontWeight: 600,
-              outline: "none",
-              cursor: phase === "connecting" ? "wait" : "pointer",
-            }}
-          >
-            {workflows.length === 0 && <option value={workflowId || ""}>{workflowId || "Loading workflows…"}</option>}
-            {workflows.map((wf) => (
-              <option key={wf.id} value={String(wf.id)}>
-                {wf.name || `Workflow ${wf.id}`} (UID {wf.id})
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
 
       {error && (
         <div style={{
@@ -297,11 +225,10 @@ const VoiceMode = ({ user }) => {
       )}
 
       <div style={{ display: "flex", gap: 10, marginTop: 28, flexWrap: "wrap", justifyContent: "center" }}>
-        {configured && !live && phase !== "connecting" && (
+        {ready && !live && phase !== "connecting" && (
           <button
             type="button"
-            onClick={() => startCall(workflowId)}
-            disabled={!workflowId}
+            onClick={startCall}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -343,7 +270,7 @@ const VoiceMode = ({ user }) => {
             <MicOff sx={{ fontSize: 18 }} /> End
           </button>
         )}
-        {!configured && status && (
+        {!ready && status && (
           user?.isAdmin ? (
             <button
               type="button"
