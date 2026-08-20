@@ -29,6 +29,7 @@ async function dubcallFetch(path, {
   query,
   apiKey,
   apiBase,
+  origin,
 } = {}) {
   const cfg = apiKey ? { apiKey, apiBase: apiBase || DEFAULT_BASE } : await loadDubcallConfig();
   if (!cfg.apiKey) {
@@ -51,6 +52,7 @@ async function dubcallFetch(path, {
       'Content-Type': 'application/json',
       'X-API-Key': cfg.apiKey,
       Authorization: `Bearer ${cfg.apiKey}`,
+      ...(origin ? { Origin: origin, Referer: `${String(origin).replace(/\/$/, '')}/` } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -160,11 +162,20 @@ async function createVoiceRun(workflowId, cfg, name) {
 }
 
 function collectAllowedDomains(req) {
-  const hosts = new Set(['localhost', '127.0.0.1']);
+  const hosts = new Set([
+    'localhost',
+    '127.0.0.1',
+    'rivetassist.rivetai.co.uk',
+    'www.rivetassist.rivetai.co.uk',
+    'rivetai.co.uk',
+    'www.rivetai.co.uk',
+    'apirivetassist.rivetai.co.uk',
+  ]);
   const extras = [
     process.env.FRONTEND_URL,
     process.env.CLIENT_URL,
     process.env.APP_URL,
+    process.env.PUBLIC_APP_URL,
     req?.headers?.origin,
     req?.headers?.referer,
   ];
@@ -182,35 +193,76 @@ function collectAllowedDomains(req) {
 }
 
 async function ensureEmbedToken(workflowId, cfg, req) {
-  try {
-    const existing = await dubcallFetch(`/api/v1/workflow/${workflowId}/embed-token`, {
-      apiKey: cfg?.apiKey,
-      apiBase: cfg?.apiBase,
-    });
-    if (existing?.token) return existing;
-  } catch (_) { /* create below */ }
-
+  const allowed_domains = collectAllowedDomains(req);
+  // Always PUT/POST the allowlist so production hosts are on the token.
+  // GET-then-skip left stale localhost-only tokens and embed init failed silently.
   return dubcallFetch(`/api/v1/workflow/${workflowId}/embed-token`, {
     method: 'POST',
     apiKey: cfg?.apiKey,
     apiBase: cfg?.apiBase,
+    origin: req?.headers?.origin,
     body: {
-      allowed_domains: collectAllowedDomains(req),
+      allowed_domains,
       expires_in_days: 365,
+      settings: {
+        auto_start: true,
+        theme: 'light',
+        position: 'inline',
+      },
     },
   });
 }
 
-async function initEmbedSession(token, cfg, contextVariables) {
+async function initEmbedSession(token, cfg, contextVariables, req) {
   return dubcallFetch('/api/v1/public/embed/init', {
     method: 'POST',
     apiKey: cfg?.apiKey,
     apiBase: cfg?.apiBase,
+    origin: req?.headers?.origin,
     body: {
       token,
       context_variables: contextVariables || undefined,
     },
   });
+}
+
+async function getTurnCredentials(sessionToken, cfg) {
+  if (sessionToken) {
+    try {
+      return await dubcallFetch(`/api/v1/public/embed/turn-credentials/${encodeURIComponent(sessionToken)}`, {
+        apiKey: cfg?.apiKey,
+        apiBase: cfg?.apiBase,
+      });
+    } catch (_) { /* fall through */ }
+  }
+  return dubcallFetch('/api/v1/turn/credentials', {
+    apiKey: cfg?.apiKey,
+    apiBase: cfg?.apiBase,
+  });
+}
+
+function extractVoice(detail) {
+  const acc = { provider: null, voiceId: null, model: null, name: null };
+  const seen = new Set();
+  const walk = (obj) => {
+    if (!obj || typeof obj !== 'object' || seen.has(obj)) return;
+    seen.add(obj);
+    const provider = obj.tts_provider || obj.ttsProvider || obj.voice_provider;
+    const voiceId = obj.tts_voice_id || obj.ttsVoiceId || obj.voice_id || obj.voiceId;
+    const model = obj.tts_model || obj.ttsModel;
+    const name = obj.voice_name || obj.voiceName || (typeof obj.voice === 'string' ? obj.voice : null);
+    if (provider && !acc.provider) acc.provider = provider;
+    if (voiceId && !acc.voiceId) acc.voiceId = voiceId;
+    if (model && !acc.model) acc.model = model;
+    if (name && !acc.name) acc.name = name;
+    if (Array.isArray(obj)) obj.forEach(walk);
+    else Object.values(obj).forEach(walk);
+  };
+  walk(detail?.workflow_definition);
+  walk(detail?.workflow_configurations);
+  walk(detail);
+  if (!acc.provider && !acc.voiceId && !acc.name) return null;
+  return acc;
 }
 
 module.exports = {
@@ -219,8 +271,11 @@ module.exports = {
   dubcallFetch,
   listWorkflows,
   resolveWorkflow,
+  getWorkflowDetail,
   createVoiceRun,
   ensureEmbedToken,
   initEmbedSession,
+  getTurnCredentials,
+  extractVoice,
   collectAllowedDomains,
 };

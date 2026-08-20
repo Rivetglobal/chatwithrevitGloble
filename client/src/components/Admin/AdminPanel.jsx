@@ -371,7 +371,7 @@ const AdminPanel = () => {
         <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
           <SectionHeader
             title="DubCall AI (Voice)"
-            sub="Connect your DubCall account with an API key, then set the workflow UID Voice mode should run."
+            sub="Save an API key once. Workflows can be switched anytime in Voice mode — no extra setup."
           />
           <StatusBadge configured={!!dubcall?.configured} source={dubcall?.apiKey?.source || "none"} />
 
@@ -407,8 +407,8 @@ const AdminPanel = () => {
           </div>
 
           <FieldRow
-            label="Workflow UID"
-            hint="Numeric workflow ID from the DubCall console, or the workflow UUID. Load workflows to pick one."
+            label="Default workflow UID (optional)"
+            hint="Optional default only. Anyone can change the workflow in Voice mode at any time without coming back here."
           >
             <Input
               value={dubcallWorkflowId}
@@ -462,7 +462,7 @@ const AdminPanel = () => {
           <div style={{ marginTop: 14, padding: 12, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.mutedLight, fontSize: "0.73rem", lineHeight: 1.7 }}>
             Create an API key and publish an agent at{" "}
             <a href="https://console.dubcall.com" target="_blank" rel="noreferrer" style={{ color: C.accentText }}>console.dubcall.com</a>
-            . The key never leaves this server. Voice mode in Chat then runs this workflow and shows the Rivet Global logo.
+            . The key never leaves this server. Voice mode lists every agent on this key so you can switch workflows anytime.
           </div>
         </div>
 
