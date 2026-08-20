@@ -17,6 +17,10 @@ const voiceService = {
     const r = await axios.post(`${API_BASE_URL}/session`, {}, { headers: authHeader() });
     return r.data;
   },
+  getTurn: async (sessionToken) => {
+    const r = await axios.get(`${API_BASE_URL}/turn/${encodeURIComponent(sessionToken)}`, { headers: authHeader() });
+    return r.data;
+  },
 };
 
 export default voiceService;

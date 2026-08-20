@@ -5,5 +5,6 @@ const voiceController = require('../controllers/voiceController');
 
 router.get('/status', auth, voiceController.getStatus);
 router.post('/session', auth, voiceController.createSession);
+router.get('/turn/:sessionToken', auth, voiceController.getTurn);
 
 module.exports = router;

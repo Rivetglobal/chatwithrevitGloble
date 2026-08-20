@@ -40,6 +40,10 @@ exports.createSession = async (req, res) => {
     }
 
     const workflow = await dubcall.resolveWorkflow(cfg.workflowUid, cfg);
+    let detail = null;
+    try { detail = await dubcall.getWorkflowDetail(workflow.id, cfg); } catch (_) { /* optional */ }
+    const voice = dubcall.extractVoice(detail) || dubcall.extractVoice(workflow);
+
     const displayName = req.user?.username
       ? `Rivet AI · ${req.user.username}`
       : 'Rivet AI voice';
@@ -48,31 +52,63 @@ exports.createSession = async (req, res) => {
 
     let embed = null;
     let session = null;
+    let turn = null;
+    let embedError = null;
     try {
       embed = await dubcall.ensureEmbedToken(workflow.id, cfg, req);
-      if (embed?.token) {
-        session = await dubcall.initEmbedSession(embed.token, cfg, {
-          source: 'rivet-ai',
-          user: req.user?.username || '',
-        });
+      if (!embed?.token) {
+        throw new Error('DubCall did not return an embed token for this workflow.');
+      }
+      session = await dubcall.initEmbedSession(embed.token, cfg, {
+        source: 'rivet-ai',
+        user: req.user?.username || '',
+      }, req);
+      try {
+        turn = await dubcall.getTurnCredentials(session?.session_token, cfg);
+      } catch (turnErr) {
+        console.warn('[voice] TURN credentials:', turnErr.message);
       }
     } catch (embedErr) {
-      console.warn('[voice] DubCall embed init skipped:', embedErr.message);
+      embedError = embedErr.message;
+      console.error('[voice] DubCall live voice failed:', embedErr.message);
     }
 
+    const connected = !!(session?.session_token || embed?.embed_script || session?.config);
     res.json({
-      ok: true,
+      ok: connected,
+      connected,
+      apiBase: cfg.apiBase,
       workflow: { id: workflow.id, name: workflow.name, uuid: workflow.uuid || null },
+      voice,
       run: {
         id: run?.id ?? session?.workflow_run_id ?? null,
         mode: run?.mode || 'voice',
         name: run?.name || displayName,
       },
+      embedToken: embed?.token || null,
+      embedScript: embed?.embed_script || null,
+      allowedDomains: embed?.allowed_domains || null,
       sessionToken: session?.session_token || null,
       config: session?.config || null,
+      turn,
+      embedError,
+      error: connected
+        ? null
+        : (embedError || 'DubCall run started, but the live voice socket did not connect. Check embed allowed domains for this site.'),
     });
   } catch (err) {
     console.error('voice createSession error:', err);
+    const { status, message } = friendlyDubcallError(err);
+    res.status(status).json({ error: message });
+  }
+};
+
+exports.getTurn = async (req, res) => {
+  try {
+    const cfg = await dubcall.loadDubcallConfig();
+    const turn = await dubcall.getTurnCredentials(req.params.sessionToken, cfg);
+    res.json(turn);
+  } catch (err) {
     const { status, message } = friendlyDubcallError(err);
     res.status(status).json({ error: message });
   }

@@ -462,7 +462,7 @@ const AdminPanel = () => {
           <div style={{ marginTop: 14, padding: 12, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.mutedLight, fontSize: "0.73rem", lineHeight: 1.7 }}>
             Create an API key and publish an agent at{" "}
             <a href="https://console.dubcall.com" target="_blank" rel="noreferrer" style={{ color: C.accentText }}>console.dubcall.com</a>
-            . The key never leaves this server. Voice mode in Chat then runs this workflow and shows the Rivet Global logo.
+            . The key never leaves this server. Voice mode talks through this DubCall agent — including the TTS voice you set in the console — and shows the Rivet Global logo.
           </div>
         </div>
 
