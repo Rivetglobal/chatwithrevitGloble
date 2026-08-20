@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { promoteIfNeeded } = require('../utils/admins');
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -16,6 +17,7 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    await promoteIfNeeded(user);
     req.user = user;
     req.userId = decoded.userId;
     next();
