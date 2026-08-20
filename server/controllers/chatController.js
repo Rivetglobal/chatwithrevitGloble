@@ -155,7 +155,7 @@ async function runWorkflow(inputText, previousMessages = []) {
 
 exports.sendMessage = async (req, res) => {
   try {
-    const { message, conversationId } = req.body;
+    const { message, conversationId, source } = req.body;
     const userId = req.userId;
 
     if (!message) {
@@ -238,6 +238,7 @@ exports.sendMessage = async (req, res) => {
       metadata: {
         model: modelName,
         tokens: 0,
+        source: source === 'voice' ? 'voice' : 'chat',
       },
     });
 

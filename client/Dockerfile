@@ -17,14 +17,18 @@ COPY . .
 # Vite inlines VITE_* at build time — pass these as Docker build args in Coolify.
 ARG VITE_API_URL
 ARG VITE_GOOGLE_CLIENT_ID
+ARG GIT_SHA=unknown
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+LABEL git.sha=$GIT_SHA
 
-# Build the application
+# Build the application. GIT_SHA busts Coolify's Docker layer cache on each commit.
 RUN npm run build
 
 # Stage 2: Production stage
 FROM nginx:alpine
+ARG GIT_SHA=unknown
+LABEL git.sha=$GIT_SHA
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html

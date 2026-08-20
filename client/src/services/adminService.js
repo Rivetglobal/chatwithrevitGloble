@@ -25,6 +25,22 @@ const adminService = {
     const r = await axios.put(`${API_BASE_URL}/integrations`, payload, { headers: authHeader() });
     return r.data;
   },
+  getDubcall: async () => {
+    const r = await axios.get(`${API_BASE_URL}/dubcall`, { headers: authHeader() });
+    return r.data;
+  },
+  updateDubcall: async (payload) => {
+    const r = await axios.put(`${API_BASE_URL}/dubcall`, payload, { headers: authHeader() });
+    return r.data;
+  },
+  listDubcallWorkflows: async (payload = {}) => {
+    const r = await axios.post(`${API_BASE_URL}/dubcall/workflows`, payload, { headers: authHeader() });
+    return r.data;
+  },
+  runDubcallWorkflow: async (payload = {}) => {
+    const r = await axios.post(`${API_BASE_URL}/dubcall/run`, payload, { headers: authHeader() });
+    return r.data;
+  },
 };
 
 export default adminService;

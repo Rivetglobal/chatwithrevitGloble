@@ -8,6 +8,11 @@ const appSettingsSchema = new mongoose.Schema({
   geminiApiKey: { type: String, default: '' },
   openaiApiKey: { type: String, default: '' },
 
+  // DubCall AI (voice agents) — key stays on the server; never returned raw
+  dubcallApiKey: { type: String, default: '' },
+  dubcallWorkflowId: { type: String, default: '' },
+  dubcallApiBase: { type: String, default: '' },
+
   // Google Service Account JSON (full JSON string)
   googleServiceAccountJson: { type: String, default: '' },
 

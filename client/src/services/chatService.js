@@ -9,8 +9,8 @@ const authHeader = () => {
 };
 
 const chatService = {
-  sendMessage: async (message, conversationId = null) => {
-    const response = await axios.post(`${API_BASE_URL}/send`, { message, conversationId }, {
+  sendMessage: async (message, conversationId = null, extra = {}) => {
+    const response = await axios.post(`${API_BASE_URL}/send`, { message, conversationId, ...extra }, {
       headers: authHeader(),
     });
     return response.data;

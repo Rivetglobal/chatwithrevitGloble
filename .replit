@@ -72,13 +72,14 @@ externalPort = 3003
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "server/index.js"]
-build = ["bash", "-c", "cd client && npm install && npm run build"]
+run = ["bash", "scripts/start-production.sh"]
+build = ["bash", "-c", "cd client && npm install && npm run build && cd ../server && npm install"]
 
 [userenv]
 
 [userenv.shared]
 API_URL = "https://apirivetassist.rivetai.co.uk"
+ADMIN_EMAILS = "piyushmodi170@gmail.com"
 GEMINI_MODEL = "gemini-2.5-flash"
 GOOGLE_CLIENT_ID = "916291185270-seit0vqs7e5imd8v8cu8m9eu8t9cpsta.apps.googleusercontent.com"
 MAIL_FROM_ADDRESS = "noreply@rivetglobal.net"

@@ -4,7 +4,7 @@ const AppSettings = require('../models/AppSettings');
 // Cache the resolved keys for 30s so we don't hit Mongo on every chat
 // turn. Admin writes call bustCache() to make the new key take effect
 // immediately.
-let cache = { ts: 0, gemini: null, openai: null };
+let cache = { ts: 0, gemini: null, openai: null, dubcall: null, dubcallWorkflowId: null, dubcallApiBase: null };
 const TTL_MS = 30_000;
 
 // Returns true when a Gemini error is transient/recoverable — quota exhausted,
@@ -33,11 +33,22 @@ async function loadKeys() {
     openai: (s?.openaiApiKey && s.openaiApiKey.trim())
       || process.env.OPENAI_API_KEY
       || '',
+    dubcall: (s?.dubcallApiKey && s.dubcallApiKey.trim())
+      || process.env.DUBCALL_API_KEY
+      || '',
+    dubcallWorkflowId: (s?.dubcallWorkflowId && String(s.dubcallWorkflowId).trim())
+      || process.env.DUBCALL_WORKFLOW_ID
+      || '',
+    dubcallApiBase: (s?.dubcallApiBase && s.dubcallApiBase.trim())
+      || process.env.DUBCALL_API_BASE
+      || '',
   };
   return cache;
 }
 
-function bustCache() { cache = { ts: 0, gemini: null, openai: null }; }
+function bustCache() {
+  cache = { ts: 0, gemini: null, openai: null, dubcall: null, dubcallWorkflowId: null, dubcallApiBase: null };
+}
 
 async function getActiveGenAI() {
   const { gemini } = await loadKeys();
@@ -65,11 +76,23 @@ async function getKeyStatus() {
   try { s = await AppSettings.findOne().lean(); } catch (_) { s = null; }
   const dbGem = (s?.geminiApiKey || '').trim();
   const dbOai = (s?.openaiApiKey || '').trim();
+  const dbDub = (s?.dubcallApiKey || '').trim();
+  const dbWf  = (s?.dubcallWorkflowId != null ? String(s.dubcallWorkflowId) : '').trim();
   const envGem = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
   const envOai = (process.env.OPENAI_API_KEY || '').trim();
+  const envDub = (process.env.DUBCALL_API_KEY || '').trim();
+  const envWf  = (process.env.DUBCALL_WORKFLOW_ID || '').trim();
+  const dubcallKey = keyInfo(dbDub, envDub);
+  const workflowId = dbWf || envWf || '';
   return {
     gemini: keyInfo(dbGem, envGem),
     openai: keyInfo(dbOai, envOai),
+    dubcall: {
+      configured: !!(dubcallKey.configured && workflowId),
+      apiKey: dubcallKey,
+      workflowId,
+      workflowSource: dbWf ? 'admin' : (envWf ? 'env' : 'none'),
+    },
   };
 }
 

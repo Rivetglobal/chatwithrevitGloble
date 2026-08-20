@@ -137,6 +137,16 @@ const AdminPanel = () => {
   const [savingGem, setSavingGem]     = useState(false);
   const [savingOai, setSavingOai]     = useState(false);
 
+  // DubCall
+  const [dubcall, setDubcall] = useState(null);
+  const [dubcallKeyInput, setDubcallKeyInput] = useState("");
+  const [dubcallWorkflowId, setDubcallWorkflowId] = useState("");
+  const [showDubcallKey, setShowDubcallKey] = useState(false);
+  const [savingDub, setSavingDub] = useState(false);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
+  const [runningDub, setRunningDub] = useState(false);
+  const [workflows, setWorkflows] = useState([]);
+
   // Integrations
   const [integ, setInteg]   = useState(DEFAULT_INTEG);
   const [savingInteg, setSavingInteg] = useState(false);
@@ -171,6 +181,13 @@ const AdminPanel = () => {
           setError(e?.response?.data?.error || "Failed to load AI keys.");
         }
         try {
+          const dubData = await adminService.getDubcall();
+          setDubcall(dubData.dubcall);
+          setDubcallWorkflowId(dubData.dubcall?.workflowId || "");
+        } catch (e) {
+          setError((prev) => prev || e?.response?.data?.error || "Failed to load DubCall settings.");
+        }
+        try {
           const integData = await adminService.getIntegrations();
           setInteg(integData);
           if (integData.email) setEmailProvider(integData.email.provider || "zepto");
@@ -186,6 +203,61 @@ const AdminPanel = () => {
       }
     })();
   }, [navigate]);
+
+  const saveDubcall = async (extra = {}) => {
+    setError(null);
+    setSavingDub(true);
+    try {
+      const payload = {
+        dubcallWorkflowId,
+        ...extra,
+      };
+      if (dubcallKeyInput.trim()) payload.dubcallApiKey = dubcallKeyInput.trim();
+      const data = await adminService.updateDubcall(payload);
+      setDubcall(data.dubcall);
+      setDubcallWorkflowId(data.dubcall?.workflowId || dubcallWorkflowId);
+      if (payload.dubcallApiKey) setDubcallKeyInput("");
+      showFlash("DubCall settings saved.");
+      return true;
+    } catch (e) {
+      setError(e?.response?.data?.error || "Failed to save DubCall settings.");
+      return false;
+    } finally {
+      setSavingDub(false);
+    }
+  };
+
+  const loadWorkflows = async () => {
+    setError(null);
+    setLoadingWorkflows(true);
+    try {
+      const payload = dubcallKeyInput.trim() ? { apiKey: dubcallKeyInput.trim() } : {};
+      const data = await adminService.listDubcallWorkflows(payload);
+      setWorkflows(data.workflows || []);
+      if (!(data.workflows || []).length) showFlash("No workflows found on this DubCall account.");
+    } catch (e) {
+      setError(e?.response?.data?.error || "Failed to load DubCall workflows.");
+    } finally {
+      setLoadingWorkflows(false);
+    }
+  };
+
+  const runWorkflow = async () => {
+    setError(null);
+    setRunningDub(true);
+    try {
+      if (dubcallKeyInput.trim() || dubcallWorkflowId !== (dubcall?.workflowId || "")) {
+        const saved = await saveDubcall();
+        if (!saved) return;
+      }
+      const data = await adminService.runDubcallWorkflow({ workflowId: dubcallWorkflowId });
+      showFlash(`Ran “${data.workflow?.name || "workflow"}” in voice mode${data.run?.id ? ` (run #${data.run.id})` : ""}.`);
+    } catch (e) {
+      setError(e?.response?.data?.error || "Failed to run the DubCall workflow.");
+    } finally {
+      setRunningDub(false);
+    }
+  };
 
   const saveKey = async (which, value) => {
     setError(null);
@@ -293,6 +365,105 @@ const AdminPanel = () => {
               </div>
             </>
           )}
+        </div>
+
+        {/* ── DubCall AI ─────────────────────────────────────────────────── */}
+        <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
+          <SectionHeader
+            title="DubCall AI (Voice)"
+            sub="Connect your DubCall account with an API key, then set the workflow UID Voice mode should run."
+          />
+          <StatusBadge configured={!!dubcall?.configured} source={dubcall?.apiKey?.source || "none"} />
+
+          <div style={{ padding: 16, border: `1px solid ${C.border}`, borderRadius: 10, backgroundColor: C.card, margin: "14px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+              <div style={{ fontSize: "0.95rem", fontWeight: 700, color: C.text }}>API key</div>
+              {dubcall?.apiKey?.configured && (
+                <code style={{ fontSize: "0.72rem", color: C.mutedLight, backgroundColor: C.bg, padding: "4px 8px", borderRadius: 4, border: `1px solid ${C.border}` }}>
+                  {dubcall.apiKey.masked}
+                </code>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type={showDubcallKey ? "text" : "password"}
+                value={dubcallKeyInput}
+                onChange={(e) => setDubcallKeyInput(e.target.value)}
+                placeholder={dubcall?.apiKey?.hasOverride ? "Paste a new key to replace…" : "Paste DubCall API key…"}
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 6, border: `1px solid ${C.border}`, backgroundColor: C.bg, color: C.text, fontSize: "0.82rem", fontFamily: "monospace", outline: "none" }}
+              />
+              <button type="button" onClick={() => setShowDubcallKey((s) => !s)}
+                style={{ padding: 8, backgroundColor: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, color: C.mutedLight, cursor: "pointer", display: "flex" }}
+                title={showDubcallKey ? "Hide" : "Show while typing"}>
+                {showDubcallKey ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
+              </button>
+            </div>
+            {dubcall?.apiKey?.hasOverride && (
+              <button type="button" onClick={() => saveDubcall({ dubcallApiKey: "" })} disabled={savingDub}
+                style={{ marginTop: 8, padding: "5px 10px", borderRadius: 5, border: `1px solid ${C.border}`, backgroundColor: "transparent", color: C.mutedLight, fontSize: "0.72rem", cursor: "pointer" }}>
+                Clear API key
+              </button>
+            )}
+          </div>
+
+          <FieldRow
+            label="Workflow UID"
+            hint="Numeric workflow ID from the DubCall console, or the workflow UUID. Load workflows to pick one."
+          >
+            <Input
+              value={dubcallWorkflowId}
+              onChange={setDubcallWorkflowId}
+              placeholder="e.g. 42 or a workflow UUID"
+              mono
+            />
+          </FieldRow>
+
+          {workflows.length > 0 && (
+            <FieldRow label="Your agents">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {workflows.map((wf) => {
+                  const selected = String(dubcallWorkflowId) === String(wf.id) || (wf.uuid && dubcallWorkflowId === wf.uuid);
+                  return (
+                    <button
+                      key={wf.id}
+                      type="button"
+                      onClick={() => setDubcallWorkflowId(String(wf.id))}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${selected ? C.accent : C.border}`,
+                        backgroundColor: selected ? C.accentDim : C.bg,
+                        cursor: "pointer",
+                        fontFamily: font,
+                      }}
+                    >
+                      <div style={{ fontSize: "0.85rem", fontWeight: 650, color: C.text }}>{wf.name}</div>
+                      <div style={{ fontSize: "0.72rem", color: C.muted, marginTop: 2 }}>UID {wf.id}{wf.uuid ? ` · ${wf.uuid}` : ""}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </FieldRow>
+          )}
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <SaveBtn onClick={() => saveDubcall()} saving={savingDub} disabled={!dubcallKeyInput.trim() && !dubcallWorkflowId.trim() && !dubcall?.apiKey?.configured} label="Save" />
+            <button type="button" onClick={loadWorkflows} disabled={loadingWorkflows || (!dubcallKeyInput.trim() && !dubcall?.apiKey?.configured)}
+              style={{ padding: "9px 14px", borderRadius: 6, border: `1px solid ${C.border}`, backgroundColor: "transparent", color: C.mutedLight, fontSize: "0.78rem", cursor: "pointer" }}>
+              {loadingWorkflows ? "Loading…" : "Load workflows"}
+            </button>
+            <button type="button" onClick={runWorkflow} disabled={runningDub || !dubcallWorkflowId.trim()}
+              style={{ padding: "9px 14px", borderRadius: 6, border: "none", backgroundColor: dubcallWorkflowId.trim() ? C.sidebar : C.border, color: "#fff", fontSize: "0.78rem", fontWeight: 600, cursor: dubcallWorkflowId.trim() ? "pointer" : "not-allowed" }}>
+              {runningDub ? "Running…" : "Run workflow"}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14, padding: 12, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.mutedLight, fontSize: "0.73rem", lineHeight: 1.7 }}>
+            Create an API key and publish an agent at{" "}
+            <a href="https://console.dubcall.com" target="_blank" rel="noreferrer" style={{ color: C.accentText }}>console.dubcall.com</a>
+            . The key never leaves this server. Voice mode in Chat then runs this workflow and shows the Rivet Global logo.
+          </div>
         </div>
 
         {/* ── Google Service Account ─────────────────────────────────────── */}

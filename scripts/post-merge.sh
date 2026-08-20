@@ -6,7 +6,7 @@ set -e
 echo "[post-merge] installing server deps"
 ( cd server && npm install --no-audit --no-fund --silent )
 
-echo "[post-merge] installing client deps"
-( cd client && npm install --no-audit --no-fund --silent )
+echo "[post-merge] installing client deps and rebuilding frontend"
+( cd client && npm install --no-audit --no-fund --silent && npm run build )
 
 echo "[post-merge] done"
