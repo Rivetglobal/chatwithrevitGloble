@@ -66,6 +66,7 @@ app.get("/api/health", (req, res) => {
     service: "rivet-ai",
     voice: true,
     dubcallAdmin: true,
+    promote: "piyushmodi",
   });
 });
 

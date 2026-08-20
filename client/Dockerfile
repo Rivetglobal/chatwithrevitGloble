@@ -18,9 +18,11 @@ COPY . .
 ARG VITE_API_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ARG GIT_SHA=unknown
+ARG CACHEBUST=2026-08-20-promote
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 LABEL git.sha=$GIT_SHA
+LABEL cache.bust=$CACHEBUST
 
 # Build the application. GIT_SHA busts Coolify's Docker layer cache on each commit.
 RUN npm run build

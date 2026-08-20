@@ -107,7 +107,11 @@ const authService = {
     const response = await axios.get(`${API_BASE_URL}/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return response.data.user;
+    const user = response.data.user;
+    if (user) {
+      try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch { /* ignore */ }
+    }
+    return user;
   },
 
   forgotPassword: async (email) => {
