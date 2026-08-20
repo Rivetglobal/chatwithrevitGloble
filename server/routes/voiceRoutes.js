@@ -1,0 +1,9 @@
+const express = require('express');
+const router = express.Router();
+const auth = require('../middleware/auth');
+const voiceController = require('../controllers/voiceController');
+
+router.get('/status', auth, voiceController.getStatus);
+router.post('/session', auth, voiceController.createSession);
+
+module.exports = router;

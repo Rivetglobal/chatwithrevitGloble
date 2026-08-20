@@ -25,7 +25,8 @@ const chatSchema = new mongoose.Schema({
   },
   metadata: {
     model: String,
-    tokens: Number
+    tokens: Number,
+    source: String,
   }
 });
 

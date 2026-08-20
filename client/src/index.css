@@ -95,3 +95,78 @@ a {
     border-radius: 16px !important;
   }
 }
+
+.rv-voice-orb {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rv-voice-logo-wrap {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #0b2545;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 1px rgba(15, 118, 110, 0.25),
+    0 18px 40px rgba(11, 37, 69, 0.18);
+  position: relative;
+  z-index: 2;
+}
+
+.rv-voice-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.rv-voice-ring,
+.rv-voice-ring-2 {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(15, 118, 110, 0.22);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.rv-voice-orb.is-listening .rv-voice-ring,
+.rv-voice-orb.is-speaking .rv-voice-ring,
+.rv-voice-orb.is-thinking .rv-voice-ring {
+  animation: rv-voice-pulse 1.8s ease-out infinite;
+}
+
+.rv-voice-orb.is-listening .rv-voice-ring-2,
+.rv-voice-orb.is-speaking .rv-voice-ring-2,
+.rv-voice-orb.is-thinking .rv-voice-ring-2 {
+  animation: rv-voice-pulse 1.8s ease-out 0.45s infinite;
+}
+
+.rv-voice-orb.is-speaking .rv-voice-logo-wrap {
+  animation: rv-voice-speak 1.1s ease-in-out infinite;
+}
+
+.rv-voice-orb.is-thinking .rv-voice-logo-wrap {
+  animation: rv-voice-think 1.4s ease-in-out infinite;
+}
+
+@keyframes rv-voice-pulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+@keyframes rv-voice-speak {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes rv-voice-think {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.97); opacity: 0.85; }
+}

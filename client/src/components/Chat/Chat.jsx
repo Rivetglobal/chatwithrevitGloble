@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TextField,
@@ -25,6 +25,8 @@ import {
   FindInPage,
   VerifiedUser,
   ArrowForward,
+  GraphicEq,
+  ChatBubbleOutline,
 } from "@mui/icons-material";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import authService from "../../services/authService";
@@ -32,6 +34,7 @@ import chatService from "../../services/chatService";
 import conversationService from "../../services/conversationService";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
 import AppShell from "../Layout/AppShell";
+import VoiceMode from "./VoiceMode";
 import { C, font, dialogPaperSx } from "../../theme";
 
 const TypingIndicator = () => (
@@ -61,8 +64,10 @@ const Chat = () => {
   const [editTitle, setEditTitle] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [mode, setMode] = useState("chat");
 
   const messagesEndRef = useRef(null);
+  const conversationIdRef = useRef(null);
   const inputRef = useRef(null);
   const [hoveredPath, setHoveredPath] = useState(null);
   const navigate = useNavigate();
@@ -103,6 +108,10 @@ const Chat = () => {
     };
     fetchData();
   }, [navigate]);
+
+  useEffect(() => {
+    conversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -197,6 +206,26 @@ const Chat = () => {
       setMessages([]); setConversations([]); setCurrentConversationId(null);
     } catch { /* ignore */ }
   };
+
+  const handleVoiceTurn = useCallback(async (text, convId) => {
+    const response = await chatService.sendMessage(text, convId || conversationIdRef.current, { source: "voice" });
+    const newChat = {
+      _id: response.chatId,
+      conversationId: response.conversationId,
+      message: text,
+      response: response.message,
+      timestamp: new Date().toISOString(),
+      metadata: { model: "rivet-voice", tokens: response.tokens, source: "voice" },
+    };
+    setCurrentConversationId(response.conversationId);
+    conversationIdRef.current = response.conversationId;
+    setMessages((prev) => [...prev, newChat]);
+    try {
+      const convData = await conversationService.getConversations();
+      setConversations(convData.conversations || []);
+    } catch { /* sidebar refresh is best-effort */ }
+    return response.message;
+  }, []);
 
   const focusInput = () => {
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -344,18 +373,74 @@ const Chat = () => {
     </button>
   );
 
+  const modeToggle = (
+    <div
+      role="tablist"
+      aria-label="Conversation mode"
+      style={{
+        display: "flex",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
+        padding: 3,
+        gap: 2,
+      }}
+    >
+      {[
+        { id: "chat", label: "Chat", icon: <ChatBubbleOutline sx={{ fontSize: 15 }} /> },
+        { id: "voice", label: "Voice", icon: <GraphicEq sx={{ fontSize: 15 }} /> },
+      ].map((opt) => {
+        const selected = mode === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => setMode(opt.id)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontFamily: font,
+              fontSize: "0.78rem",
+              fontWeight: 650,
+              background: selected ? C.surface : "transparent",
+              color: selected ? C.text : C.muted,
+              boxShadow: selected ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
+            }}
+          >
+            {opt.icon} {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <AppShell
       user={user}
       active="chat"
-      title={currentTitle || "Conversations"}
-      subtitle="NHS compliance assistant"
+      title={mode === "voice" ? "Voice" : (currentTitle || "Conversations")}
+      subtitle={mode === "voice" ? "Talk with Rivet" : "NHS compliance assistant"}
       loading={loading}
       sidebarOpen={sidebarOpen}
       onSidebarOpenChange={setSidebarOpen}
       sidebarExtra={sidebarExtra}
       sidebarFooter={sidebarFooter}
+      topBarRight={modeToggle}
     >
+      {mode === "voice" ? (
+        <VoiceMode
+          conversationId={currentConversationId}
+          user={user}
+          onTurn={handleVoiceTurn}
+        />
+      ) : (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div className="rv-scroll" style={{
           flex: 1, overflowY: "auto", padding: "24px 28px",
@@ -620,6 +705,7 @@ const Chat = () => {
           </form>
         </div>
       </div>
+      )}
 
       <Dialog
         open={deleteDialogOpen}
