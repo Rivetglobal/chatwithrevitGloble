@@ -218,9 +218,10 @@ const AdminPanel = () => {
       setDubcallWorkflowId(data.dubcall?.workflowId || dubcallWorkflowId);
       if (payload.dubcallApiKey) setDubcallKeyInput("");
       showFlash("DubCall settings saved.");
+      return true;
     } catch (e) {
       setError(e?.response?.data?.error || "Failed to save DubCall settings.");
-      throw e;
+      return false;
     } finally {
       setSavingDub(false);
     }
@@ -246,7 +247,8 @@ const AdminPanel = () => {
     setRunningDub(true);
     try {
       if (dubcallKeyInput.trim() || dubcallWorkflowId !== (dubcall?.workflowId || "")) {
-        await saveDubcall();
+        const saved = await saveDubcall();
+        if (!saved) return;
       }
       const data = await adminService.runDubcallWorkflow({ workflowId: dubcallWorkflowId });
       showFlash(`Ran “${data.workflow?.name || "workflow"}” in voice mode${data.run?.id ? ` (run #${data.run.id})` : ""}.`);
