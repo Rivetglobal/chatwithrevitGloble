@@ -11,12 +11,13 @@ exports.getStatus = async (req, res) => {
   try {
     const keys = await aiClients.getKeyStatus();
     const dub = keys.dubcall || {};
+    const workflowId = dub.workflowId || '';
     res.json({
-      configured: !!dub.apiKey?.configured,
+      configured: !!(dub.apiKey?.configured && workflowId),
       apiKeyConfigured: !!dub.apiKey?.configured,
       apiKeyMasked: dub.apiKey?.masked || '',
       apiKeySource: dub.apiKey?.source || 'none',
-      workflowId: dub.workflowId || '',
+      workflowId,
       workflowSource: dub.workflowSource || 'none',
     });
   } catch (err) {
@@ -33,11 +34,10 @@ exports.createSession = async (req, res) => {
         error: 'DubCall is not connected. An admin must save an API key in Admin → DubCall AI.',
       });
     }
-    const requested = typeof req.body?.workflowId === 'string' ? req.body.workflowId.trim() : '';
-    const uid = requested || cfg.workflowUid;
+    const uid = cfg.workflowUid;
     if (!uid) {
       return res.status(400).json({
-        error: 'Pick a DubCall workflow in Voice mode. No extra admin setup is required once the API key is saved.',
+        error: 'Voice is not set up. An admin must save a workflow UID in Admin → DubCall AI.',
       });
     }
 

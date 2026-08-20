@@ -371,7 +371,7 @@ const AdminPanel = () => {
         <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
           <SectionHeader
             title="DubCall AI (Voice)"
-            sub="Save an API key once. Voice mode talks to the live DubCall agent over WebRTC — it does not use browser text-to-speech."
+            sub="Save the API key and the workflow UID here. Users only see Start conversation — they cannot pick a workflow."
           />
           <StatusBadge configured={!!dubcall?.configured} source={dubcall?.apiKey?.source || "none"} />
 
@@ -407,8 +407,8 @@ const AdminPanel = () => {
           </div>
 
           <FieldRow
-            label="Default workflow UID (optional)"
-            hint="Optional default only. Anyone can change the workflow in Voice mode at any time without coming back here."
+            label="Voice workflow UID"
+            hint="Required. This is the DubCall agent every user gets in Voice mode. Load workflows below, click one, then Save."
           >
             <Input
               value={dubcallWorkflowId}
@@ -462,7 +462,7 @@ const AdminPanel = () => {
           <div style={{ marginTop: 14, padding: 12, border: `1px dashed ${C.border}`, borderRadius: 8, color: C.mutedLight, fontSize: "0.73rem", lineHeight: 1.7 }}>
             Create an API key and publish an agent at{" "}
             <a href="https://console.dubcall.com" target="_blank" rel="noreferrer" style={{ color: C.accentText }}>console.dubcall.com</a>
-            . The key never leaves this server. Voice mode lists every agent on this key so you can switch workflows anytime.
+            . The key never leaves this server. Change the workflow UID here whenever you want a different agent in Voice mode.
           </div>
         </div>
 
