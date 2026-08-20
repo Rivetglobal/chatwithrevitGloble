@@ -47,14 +47,33 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("static"));
 
-// Serve built Vite frontend in production
 const clientDist = resolve(__dirname, "../client/dist");
-app.use(express.static(clientDist));
+app.use(
+  express.static(clientDist, {
+    index: false,
+    setHeaders(res, filePath) {
+      if (filePath.endsWith("index.html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+      }
+    },
+  }),
+);
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "rivet-ai",
+    voice: true,
+    dubcallAdmin: true,
+  });
+});
 
 app.get("/", (req, res) => {
   const indexHtml = resolve(clientDist, "index.html");
   const fallback = resolve(__dirname, "pages/index.html");
   const fs = require("fs");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(fs.existsSync(indexHtml) ? indexHtml : fallback);
 });
 
@@ -70,6 +89,7 @@ app.get("*", (req, res) => {
   const fs = require("fs");
   const indexHtml = resolve(clientDist, "index.html");
   if (fs.existsSync(indexHtml)) {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(indexHtml);
   } else {
     res.sendFile(resolve(__dirname, "pages/index.html"));
@@ -84,9 +104,10 @@ app.use((err, req, res, next) => {
 
 // Connect to DB first, THEN start server
 connectDB().then(async () => {
-  // Load admin-configured integrations (Google SA JSON, email) into module caches.
   const { initIntegrations } = require('./controllers/adminController');
   await initIntegrations();
+  const { ensureAdmins } = require('./utils/admins');
+  await ensureAdmins();
 
   app.listen(port, () => {
     console.log(`Chat API server listening at http://localhost:${port}`);

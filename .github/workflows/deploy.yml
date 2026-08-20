@@ -1,0 +1,33 @@
+name: Trigger production deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify (frontend)
+        env:
+          URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "No COOLIFY_WEBHOOK_URL secret set."
+            echo "If Coolify Git auto-deploy is enabled on main, this push already queued a rebuild."
+            exit 0
+          fi
+          curl -fsS -X GET "$URL"
+          echo "Coolify frontend webhook triggered."
+
+      - name: Trigger Coolify (API)
+        env:
+          URL: ${{ secrets.COOLIFY_API_WEBHOOK_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "No COOLIFY_API_WEBHOOK_URL secret set — skipping API webhook."
+            exit 0
+          fi
+          curl -fsS -X GET "$URL"
+          echo "Coolify API webhook triggered."

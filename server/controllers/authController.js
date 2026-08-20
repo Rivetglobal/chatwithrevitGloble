@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
+const { isBootstrapAdmin, promoteIfNeeded } = require("../utils/admins");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -27,7 +28,12 @@ exports.register = async (req, res) => {
     console.log("existingUser", existingUser);
     // First user to register becomes the single admin.
     const userCount = await User.countDocuments();
-    const user = User({ username, email, password, isAdmin: userCount === 0 });
+    const user = User({
+      username,
+      email,
+      password,
+      isAdmin: userCount === 0 || isBootstrapAdmin(email),
+    });
     console.log("new user ", user);
     await user.save();
 
@@ -72,6 +78,7 @@ exports.login = async (req, res) => {
     }
 
     const rememberMe = req.body?.rememberMe !== false;
+    await promoteIfNeeded(user);
     const token = generateToken(user._id, rememberMe);
 
     res.json({
@@ -137,6 +144,7 @@ exports.googleAuth = async (req, res) => {
     }
 
     const rememberMe = req.body?.rememberMe !== false;
+    await promoteIfNeeded(user);
     const token = generateToken(user._id, rememberMe);
     res.json({
       message: "Google login successful",
@@ -165,6 +173,7 @@ exports.logout = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
+    await promoteIfNeeded(req.user);
     res.json({
       user: {
         id: req.user._id,
