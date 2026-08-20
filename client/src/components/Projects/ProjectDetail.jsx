@@ -1,39 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Avatar, Menu, MenuItem, useTheme, useMediaQuery, TextField, Tooltip,
+  useTheme, useMediaQuery, TextField, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
 } from "@mui/material";
 import {
-  Logout, Menu as MenuIcon, Close, ArrowBack, Send,
-  Chat as ChatBubbleIcon, BarChart, Folder, CloudUpload, Delete,
-  InsertDriveFile, Edit as EditIcon, Settings, Link as LinkIcon,
+  ArrowBack, Send,
+  Chat as ChatBubbleIcon, CloudUpload, Delete,
+  InsertDriveFile, Settings, Link as LinkIcon,
   TableChart, OpenInNew, AddComment, EventNote, Refresh,
 } from "@mui/icons-material";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import authService from "../../services/authService";
 import projectService from "../../services/projectService";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
-
-const C = {
-  bg: "#0c1117", sidebar: "#111827", surface: "#131929",
-  card: "#1a2234", cardHover: "#1f2a40", border: "#1e2d45",
-  accent: "#5b8dee", accentDim: "rgba(91,141,238,0.12)", accentText: "#93c5fd",
-  text: "#f1f5f9", muted: "#64748b", mutedLight: "#94a3b8", error: "#f87171",
-  userBubble: "#1e3a6e", userBubbleBorder: "#2563eb",
-  aiBubble: "#131929", aiBubbleBorder: "#1e2d45",
-};
-const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-
-const NAV_ITEMS = [
-  { icon: <ChatBubbleIcon sx={{ fontSize: 18 }} />, label: "Conversations", id: "chat", path: "/chat" },
-  { icon: <Folder sx={{ fontSize: 18 }} />, label: "Projects", id: "projects", path: "/projects" },
-];
+import AppShell from "../Layout/AppShell";
+import { C, font } from "../../theme";
 
 const TypingIndicator = () => (
   <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
     {[0, 1, 2].map((i) => (
-      <motion.div key={i}
+      <Motion.div key={i}
         style={{ width: 6, height: 6, backgroundColor: C.accent, borderRadius: "50%", opacity: 0.7 }}
         animate={{ y: [0, -5, 0] }}
         transition={{ duration: 0.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.15 }}
@@ -65,7 +52,6 @@ const ProjectDetail = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -172,11 +158,6 @@ const ProjectDetail = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
-
-  const handleLogout = () => {
-    setAnchorEl(null);
-    authService.logoutAndRedirect(navigate);
-  };
 
   const handleFile = async (file) => {
     if (!file) return;
@@ -406,48 +387,17 @@ const ProjectDetail = () => {
     try { await navigator.clipboard.writeText(text); } catch (_) {}
   };
 
-  const Sidebar = () => (
-    <div style={{ width: 220, minWidth: 220, backgroundColor: C.sidebar, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: font }}>
-      <div style={{ padding: "16px 16px 12px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: "8px" }}>
-        <img src={rivetLogo} alt="Rivet AI" style={{ width: 28, height: 28, borderRadius: "6px", objectFit: "cover" }} />
-        <span style={{ color: C.text, fontWeight: 700, fontSize: "1rem" }}>Rivet AI</span>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(false)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: C.muted, display: "flex", padding: 0 }}>
-            <Close sx={{ fontSize: 18 }} />
-          </button>
-        )}
-      </div>
-      <div style={{ padding: "12px 8px 8px" }}>
-        {NAV_ITEMS.map((item) => (
-          <div key={item.id} onClick={() => navigate(item.path)}
-            style={{
-              display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
-              borderRadius: "8px", marginBottom: "2px", cursor: "pointer",
-              backgroundColor: item.id === "projects" ? C.accentDim : "transparent",
-              color: item.id === "projects" ? C.accentText : C.muted,
-              transition: "background-color 0.15s", userSelect: "none",
-            }}
-            onMouseEnter={(e) => { if (item.id !== "projects") e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)"; }}
-            onMouseLeave={(e) => { if (item.id !== "projects") e.currentTarget.style.backgroundColor = "transparent"; }}
-          >
-            {item.icon}
-            <span style={{ fontSize: "0.875rem", fontWeight: item.id === "projects" ? 600 : 400 }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ flex: 1 }} />
-    </div>
-  );
-
   if (loading) {
-    return <div style={{ height: "100vh", backgroundColor: C.bg, color: C.muted, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font }}>Loading…</div>;
+    return <AppShell user={user} active="projects" title="Projects" loading />;
   }
   if (!project) {
     return (
-      <div style={{ height: "100vh", backgroundColor: C.bg, color: C.text, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: font, gap: 12 }}>
-        <div>Project not found.</div>
-        <button onClick={() => navigate("/projects")} style={{ backgroundColor: C.accent, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}>Back to projects</button>
-      </div>
+      <AppShell user={user} active="projects" title="Projects" sidebarOpen={sidebarOpen} onSidebarOpenChange={setSidebarOpen}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <div style={{ color: C.text, fontWeight: 600 }}>Project not found.</div>
+          <button type="button" onClick={() => navigate("/projects")} style={{ backgroundColor: C.accent, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontFamily: font }}>Back to projects</button>
+        </div>
+      </AppShell>
     );
   }
 
@@ -455,46 +405,15 @@ const ProjectDetail = () => {
   const hasReadOnlySheetSource = project.sources.some((s) => s.sourceUrl && /docs\.google\.com\/spreadsheets/i.test(s.sourceUrl));
 
   return (
-    <div style={{ height: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column", fontFamily: font, overflow: "hidden", position: "fixed", inset: 0 }}>
-      {/* TOP BAR */}
-      <div style={{ height: 52, backgroundColor: C.surface, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 16px", gap: "12px", flexShrink: 0, zIndex: 10 }}>
-        {isMobile && (
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, display: "flex", padding: 0 }}>
-            <MenuIcon sx={{ fontSize: 20 }} />
-          </button>
-        )}
-        {!isMobile && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <img src={rivetLogo} alt="Rivet AI" style={{ width: 26, height: 26, borderRadius: "6px", objectFit: "cover" }} />
-            <span style={{ color: C.text, fontWeight: 700, fontSize: "0.95rem" }}>Rivet AI</span>
-          </div>
-        )}
-        <div style={{ flex: 1 }} />
-        <button onClick={(e) => setAnchorEl(e.currentTarget)} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: "8px", cursor: "pointer", color: C.text, fontFamily: font, display: "flex", alignItems: "center", gap: "10px", padding: "6px 12px 6px 8px" }}>
-          <Avatar sx={{ width: 26, height: 26, backgroundColor: C.accent, fontSize: "0.75rem", fontWeight: 700 }}>{user?.username?.[0]?.toUpperCase()}</Avatar>
-          {!isMobile && (
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: "0.8rem", fontWeight: 600, color: C.text, lineHeight: 1.2 }}>{user?.username?.toUpperCase()}</div>
-              <div style={{ fontSize: "0.65rem", color: C.muted }}>Free Plan</div>
-            </div>
-          )}
-        </button>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} PaperProps={{ sx: { backgroundColor: C.card, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.text, minWidth: 160, fontFamily: font } }}>
-          <MenuItem onClick={handleLogout} sx={{ fontFamily: font, fontSize: "0.875rem", gap: 1, color: C.mutedLight, "&:hover": { backgroundColor: "rgba(255,255,255,0.05)", color: C.text } }}>
-            <Logout sx={{ fontSize: 16 }} /> Logout
-          </MenuItem>
-        </Menu>
-      </div>
-
-      {/* BODY */}
+    <AppShell
+      user={user}
+      active="projects"
+      title={project.name}
+      subtitle={isSheetMode ? "Sheet assistant" : "Source-grounded chat"}
+      sidebarOpen={sidebarOpen}
+      onSidebarOpenChange={setSidebarOpen}
+    >
       <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-        {isMobile && sidebarOpen && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex" }}>
-            <div style={{ flex: "0 0 240px" }}><Sidebar /></div>
-            <div style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setSidebarOpen(false)} />
-          </div>
-        )}
-        {!isMobile && <Sidebar />}
 
         {/* MAIN */}
         <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", overflow: "hidden" }}>
@@ -549,7 +468,7 @@ const ProjectDetail = () => {
                 onClick={() => setLinkDialogOpen(true)}
                 disabled={uploading || linkLoading}
                 style={{ marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "9px 12px", borderRadius: 8, backgroundColor: "transparent", color: C.mutedLight, border: `1px solid ${C.border}`, cursor: (uploading || linkLoading) ? "default" : "pointer", fontFamily: font, fontSize: "0.82rem", fontWeight: 500 }}
-                onMouseEnter={(e) => { if (!uploading && !linkLoading) { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = C.text; } }}
+                onMouseEnter={(e) => { if (!uploading && !linkLoading) { e.currentTarget.style.backgroundColor = C.cardHover; e.currentTarget.style.color = C.text; } }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = C.mutedLight; }}
               >
                 <LinkIcon sx={{ fontSize: 16 }} />
@@ -686,17 +605,17 @@ const ProjectDetail = () => {
               </Tooltip>
             </div>
             {!isSheetMode && (
-              <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, backgroundColor: "rgba(245,158,11,0.08)", color: C.mutedLight, fontSize: "0.78rem", lineHeight: 1.55 }}>
+              <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.warnBorder}`, backgroundColor: C.warnBg, color: C.mutedLight, fontSize: "0.78rem", lineHeight: 1.55 }}>
                 {hasReadOnlySheetSource ? (
                   <>
-                    <strong style={{ color: "#fbbf24" }}>Read-only sheet imported.</strong>{" "}
+                    <strong style={{ color: C.warn }}>Read-only sheet imported.</strong>{" "}
                     To <strong style={{ color: C.text }}>edit</strong> a Google Sheet via chat, open{" "}
                     <button type="button" onClick={() => setSettingsOpen(true)} style={{ background: "none", border: "none", padding: 0, color: C.accentText, cursor: "pointer", fontFamily: font, fontSize: "inherit", textDecoration: "underline" }}>Settings</button>
                     {" "}→ link the sheet under <strong style={{ color: C.text }}>Sheet assistant</strong> (not the import button on the left).
                   </>
                 ) : (
                   <>
-                    <strong style={{ color: "#fbbf24" }}>Chat mode is read-only.</strong>{" "}
+                    <strong style={{ color: C.warn }}>Chat mode is read-only.</strong>{" "}
                     To edit a Google Sheet with prompts, open{" "}
                     <button type="button" onClick={() => setSettingsOpen(true)} style={{ background: "none", border: "none", padding: 0, color: C.accentText, cursor: "pointer", fontFamily: font, fontSize: "inherit", textDecoration: "underline" }}>Settings</button>
                     {" "}→ paste your sheet URL under <strong style={{ color: C.text }}>Sheet assistant</strong> → click <strong style={{ color: C.text }}>Link sheet</strong>.
@@ -736,19 +655,19 @@ const ProjectDetail = () => {
                 {messages.map((m, idx) => (
                   m.role === "user" ? (
                     <div key={idx} style={{ display: "flex", justifyContent: "flex-end" }}>
-                      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-                        style={{ backgroundColor: C.userBubble, border: `1px solid ${C.userBubbleBorder}`, borderRadius: "12px 12px 2px 12px", padding: "10px 14px", maxWidth: "75%", color: C.text, fontSize: "0.9rem", lineHeight: 1.55, wordBreak: "break-word" }}>
+                      <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
+                        style={{ backgroundColor: C.userBubble, border: `1px solid ${C.userBubbleBorder}`, borderRadius: "12px 12px 2px 12px", padding: "10px 14px", maxWidth: "75%", color: C.userBubbleText, fontSize: "0.9rem", lineHeight: 1.55, wordBreak: "break-word" }}>
                         {m.content}
-                      </motion.div>
+                      </Motion.div>
                     </div>
                   ) : (
                     <div key={idx} style={{ display: "flex", gap: 10, alignItems: "flex-start", maxWidth: "85%" }}>
                       <img src={rivetLogo} alt="AI" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover", marginTop: 2, flexShrink: 0 }} />
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-                        <motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}
+                        <Motion.div initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}
                           style={{ backgroundColor: C.aiBubble, border: `1px solid ${m.error ? C.error : C.aiBubbleBorder}`, borderRadius: "2px 12px 12px 12px", padding: "10px 14px", color: m.error ? C.error : C.text, fontSize: "0.9rem", lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                           {m.content}
-                        </motion.div>
+                        </Motion.div>
                         {!m.error && m.sources && m.sources.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingLeft: 4 }}>
                             {m.sources.map((s) => (
@@ -854,7 +773,7 @@ const ProjectDetail = () => {
             onClick={handleAddLink}
             disabled={linkLoading || !linkUrl.trim()}
             variant="contained"
-            sx={{ backgroundColor: C.accent, color: "#fff", fontFamily: font, textTransform: "none", boxShadow: "none", "&:hover": { backgroundColor: "#4a7bd9", boxShadow: "none" }, "&.Mui-disabled": { backgroundColor: "rgba(91,141,238,0.25)", color: "rgba(255,255,255,0.5)" } }}
+            sx={{ backgroundColor: C.accent, color: "#fff", fontFamily: font, textTransform: "none", boxShadow: "none", "&:hover": { backgroundColor: C.accentHover, boxShadow: "none" }, "&.Mui-disabled": { backgroundColor: C.accentDim, color: C.muted } }}
           >
             {linkLoading ? "Importing…" : "Add sheet"}
           </Button>
@@ -978,7 +897,7 @@ const ProjectDetail = () => {
                   <button
                     onClick={() => handleLinkBookingSheet()}
                     disabled={bookingBusy || !bookingUrl.trim()}
-                    style={{ padding: "8px 14px", borderRadius: 6, border: "none", backgroundColor: bookingBusy ? "rgba(91,141,238,0.4)" : C.accent, color: "#fff", fontFamily: font, fontSize: "0.8rem", fontWeight: 600, cursor: bookingBusy ? "default" : "pointer" }}
+                    style={{ padding: "8px 14px", borderRadius: 6, border: "none", backgroundColor: bookingBusy ? C.accentDim : C.accent, color: "#fff", fontFamily: font, fontSize: "0.8rem", fontWeight: 600, cursor: bookingBusy ? "default" : "pointer" }}
                   >
                     {bookingBusy ? "Linking…" : "Link sheet"}
                   </button>
@@ -1089,7 +1008,7 @@ const ProjectDetail = () => {
           <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             {[
               { l: "Total slots", v: bookingsData?.counts?.total ?? "—", color: C.text },
-              { l: "Free", v: bookingsData?.counts?.free ?? "—", color: "#4ade80" },
+              { l: "Free", v: bookingsData?.counts?.free ?? "—", color: C.ok },
               { l: "Booked", v: bookingsData?.counts?.booked ?? "—", color: C.accentText },
             ].map((s) => (
               <div key={s.l} style={{ flex: "1 1 140px", padding: "10px 14px", borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.border}` }}>
@@ -1122,8 +1041,8 @@ const ProjectDetail = () => {
                 <tbody>
                   {bookingsData.rows.map((r) => {
                     const free = r.isFree;
-                    const badgeColor = free ? "#4ade80" : C.accentText;
-                    const badgeBg = free ? "rgba(74,222,128,0.12)" : C.accentDim;
+                    const badgeColor = free ? C.ok : C.accentText;
+                    const badgeBg = free ? "rgba(5,150,105,0.10)" : C.accentDim;
                     const label = r.status || (free ? "Available" : "Booked");
                     return (
                       <tr key={r.rowNumber} style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -1157,7 +1076,7 @@ const ProjectDetail = () => {
           <Button onClick={() => setBookingsOpen(false)} sx={{ color: C.accent }}>Close</Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </AppShell>
   );
 };
 
