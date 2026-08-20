@@ -12,7 +12,7 @@ exports.getStatus = async (req, res) => {
     const keys = await aiClients.getKeyStatus();
     const dub = keys.dubcall || {};
     res.json({
-      configured: !!dub.configured,
+      configured: !!dub.apiKey?.configured,
       apiKeyConfigured: !!dub.apiKey?.configured,
       apiKeyMasked: dub.apiKey?.masked || '',
       apiKeySource: dub.apiKey?.source || 'none',
@@ -33,13 +33,15 @@ exports.createSession = async (req, res) => {
         error: 'DubCall is not connected. An admin must save an API key in Admin → DubCall AI.',
       });
     }
-    if (!cfg.workflowUid) {
+    const requested = typeof req.body?.workflowId === 'string' ? req.body.workflowId.trim() : '';
+    const uid = requested || cfg.workflowUid;
+    if (!uid) {
       return res.status(400).json({
-        error: 'No DubCall workflow UID is set. An admin must save the workflow UID in Admin → DubCall AI.',
+        error: 'Pick a DubCall workflow in Voice mode. No extra admin setup is required once the API key is saved.',
       });
     }
 
-    const workflow = await dubcall.resolveWorkflow(cfg.workflowUid, cfg);
+    const workflow = await dubcall.resolveWorkflow(uid, cfg);
     let detail = null;
     try { detail = await dubcall.getWorkflowDetail(workflow.id, cfg); } catch (_) { /* optional */ }
     const voice = dubcall.extractVoice(detail) || dubcall.extractVoice(workflow);
@@ -98,6 +100,24 @@ exports.createSession = async (req, res) => {
     });
   } catch (err) {
     console.error('voice createSession error:', err);
+    const { status, message } = friendlyDubcallError(err);
+    res.status(status).json({ error: message });
+  }
+};
+
+exports.listWorkflows = async (req, res) => {
+  try {
+    const cfg = await dubcall.loadDubcallConfig();
+    if (!cfg.apiKey) {
+      return res.status(400).json({ error: 'DubCall API key is not connected.' });
+    }
+    const workflows = await dubcall.listWorkflows(cfg);
+    res.json({
+      workflows,
+      defaultWorkflowId: cfg.workflowUid || '',
+    });
+  } catch (err) {
+    console.error('voice listWorkflows error:', err);
     const { status, message } = friendlyDubcallError(err);
     res.status(status).json({ error: message });
   }

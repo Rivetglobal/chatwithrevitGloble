@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const voiceController = require('../controllers/voiceController');
 
 router.get('/status', auth, voiceController.getStatus);
+router.get('/workflows', auth, voiceController.listWorkflows);
 router.post('/session', auth, voiceController.createSession);
 router.get('/turn/:sessionToken', auth, voiceController.getTurn);
 

@@ -13,8 +13,12 @@ const voiceService = {
     const r = await axios.get(`${API_BASE_URL}/status`, { headers: authHeader() });
     return r.data;
   },
-  createSession: async () => {
-    const r = await axios.post(`${API_BASE_URL}/session`, {}, { headers: authHeader() });
+  createSession: async (workflowId) => {
+    const r = await axios.post(`${API_BASE_URL}/session`, { workflowId }, { headers: authHeader() });
+    return r.data;
+  },
+  listWorkflows: async () => {
+    const r = await axios.get(`${API_BASE_URL}/workflows`, { headers: authHeader() });
     return r.data;
   },
   getTurn: async (sessionToken) => {

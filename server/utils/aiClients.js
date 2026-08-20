@@ -88,7 +88,7 @@ async function getKeyStatus() {
     gemini: keyInfo(dbGem, envGem),
     openai: keyInfo(dbOai, envOai),
     dubcall: {
-      configured: !!(dubcallKey.configured && workflowId),
+      configured: !!dubcallKey.configured,
       apiKey: dubcallKey,
       workflowId,
       workflowSource: dbWf ? 'admin' : (envWf ? 'env' : 'none'),
