@@ -3,19 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { ArrowBack, Visibility, VisibilityOff, CheckCircle, Cancel, UploadFile } from "@mui/icons-material";
 import authService from "../../services/authService";
 import adminService from "../../services/adminService";
+import AppShell from "../Layout/AppShell";
+import { C, font } from "../../theme";
 
 const DEFAULT_INTEG = {
   google: { configured: false, source: "none", clientEmail: "", hasOverride: false, hasEnv: false },
   email: { configured: false, source: "none", provider: "zepto" },
 };
-
-const C = {
-  bg: "#0c1117", surface: "#131929", card: "#1a2234", border: "#1e2d45",
-  accent: "#5b8dee", accentDim: "rgba(91,141,238,0.12)", accentText: "#93c5fd",
-  text: "#f1f5f9", muted: "#64748b", mutedLight: "#94a3b8",
-  ok: "#34a853", warn: "#f59e0b", error: "#f87171",
-};
-const font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 const StatusBadge = ({ configured, source }) => {
   const label = configured
@@ -130,6 +124,7 @@ const AdminPanel = () => {
   const navigate = useNavigate();
   const [user, setUser]         = useState(null);
   const [loading, setLoading]   = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [flash, setFlash]       = useState(null);
   const [error, setError]       = useState(null);
 
@@ -258,16 +253,17 @@ const AdminPanel = () => {
   };
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", backgroundColor: C.bg, color: C.mutedLight, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: font }}>Loading…</div>
+    <AppShell user={user} active="projects" title="Admin" loading />
   );
 
   return (
-    <div style={{ position: "fixed", inset: 0, backgroundColor: C.bg, color: C.text, fontFamily: font, overflowY: "auto" }}>
-    <div style={{ padding: "32px 24px" }}>
+    <AppShell user={user} active="projects" title="Admin panel" subtitle="Workspace configuration" sidebarOpen={sidebarOpen} onSidebarOpenChange={setSidebarOpen}>
+    <div className="rv-scroll" style={{ flex: 1, overflowY: "auto" }}>
+    <div style={{ padding: "28px 24px 48px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
 
         <button type="button" onClick={() => navigate("/projects")}
-          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 24, padding: "6px 12px", border: `1px solid ${C.border}`, borderRadius: 6, backgroundColor: "transparent", color: C.mutedLight, cursor: "pointer", fontSize: "0.78rem" }}>
+          style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 24, padding: "6px 12px", border: `1px solid ${C.border}`, borderRadius: 8, backgroundColor: C.surface, color: C.mutedLight, cursor: "pointer", fontSize: "0.78rem", fontFamily: font }}>
           <ArrowBack sx={{ fontSize: 16 }} /> Back to projects
         </button>
 
@@ -276,8 +272,8 @@ const AdminPanel = () => {
           All settings saved here are stored in the database and take effect immediately — no server restart or environment variable needed.
         </p>
 
-        {flash && <div style={{ padding: "10px 14px", borderRadius: 6, backgroundColor: "rgba(52,168,83,0.12)", border: `1px solid ${C.ok}`, color: C.ok, fontSize: "0.82rem", marginBottom: 16 }}>{flash}</div>}
-        {error && <div style={{ padding: "10px 14px", borderRadius: 6, backgroundColor: "rgba(248,113,113,0.12)", border: `1px solid ${C.error}`, color: C.error, fontSize: "0.82rem", marginBottom: 16 }}>{error}</div>}
+        {flash && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#ECFDF5", border: `1px solid #A7F3D0`, color: C.ok, fontSize: "0.82rem", marginBottom: 16 }}>{flash}</div>}
+        {error && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#FEF2F2", border: `1px solid #FECACA`, color: C.error, fontSize: "0.82rem", marginBottom: 16 }}>{error}</div>}
 
         {/* ── AI / LLM Keys ──────────────────────────────────────────────── */}
         <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
@@ -432,6 +428,7 @@ const AdminPanel = () => {
       </div>
     </div>
     </div>
+    </AppShell>
   );
 };
 
