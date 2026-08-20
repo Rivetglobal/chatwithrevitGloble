@@ -72,8 +72,8 @@ const VoiceMode = ({ user }) => {
 
   const teardown = useCallback(() => {
     liveRef.current = false;
-    try { rtcRef.current?.close?.(); } catch (_) { /* ignore */ }
-    try { rtcRef.current?.pc?.close(); } catch (_) { /* ignore */ }
+    try { rtcRef.current?.close?.(); } catch { /* ignore */ }
+    try { rtcRef.current?.pc?.close(); } catch { /* ignore */ }
     rtcRef.current = null;
     if (audioRef.current) {
       audioRef.current.pause();
@@ -155,7 +155,7 @@ const VoiceMode = ({ user }) => {
         },
       });
       if (!liveRef.current) {
-        try { handle.close(); } catch (_) { /* ignore */ }
+        try { handle.close(); } catch { /* ignore */ }
         return;
       }
       rtcRef.current = handle;

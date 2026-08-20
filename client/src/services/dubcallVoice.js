@@ -131,12 +131,12 @@ function watchSpeaking(stream, onState) {
         onState(next ? 'speaking' : 'listening');
       }
     }, 90);
-  } catch (_) {
+  } catch {
     return () => {};
   }
   return () => {
     clearInterval(interval);
-    try { ctx?.close(); } catch (_) { /* ignore */ }
+    try { ctx?.close(); } catch { /* ignore */ }
   };
 }
 
@@ -189,7 +189,7 @@ export async function startDubcallVoice({
   }
 
   if (turnEnabled !== false && !turnCreds?.uris?.length) {
-    try { turnCreds = await fetchTurnCredentials(apiBase, token); } catch (_) { /* STUN only */ }
+    try { turnCreds = await fetchTurnCredentials(apiBase, token); } catch { /* STUN only */ }
   }
 
   if (!audioEl) throw new Error('Voice audio element is missing.');
@@ -236,10 +236,10 @@ export async function startDubcallVoice({
     if (closed) return;
     closed = true;
     stopWatch();
-    try { ws?.close(); } catch (_) { /* ignore */ }
+    try { ws?.close(); } catch { /* ignore */ }
     ws = null;
-    try { pc.close(); } catch (_) { /* ignore */ }
-    try { stream?.getTracks?.().forEach((t) => t.stop()); } catch (_) { /* ignore */ }
+    try { pc.close(); } catch { /* ignore */ }
+    try { stream?.getTracks?.().forEach((t) => t.stop()); } catch { /* ignore */ }
     if (audioEl) {
       audioEl.pause();
       audioEl.srcObject = null;

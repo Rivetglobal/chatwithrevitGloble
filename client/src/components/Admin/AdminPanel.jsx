@@ -299,7 +299,7 @@ const AdminPanel = () => {
 
   const saveGoogleJson = () => {
     if (!saJson.trim()) return;
-    try { JSON.parse(saJson.trim()); } catch (_) { setError("The JSON you pasted is not valid. Copy the full contents of the .json file including the outer { }."); return; }
+    try { JSON.parse(saJson.trim()); } catch { setError("The JSON you pasted is not valid. Copy the full contents of the .json file including the outer { }."); return; }
     saveIntegrations({ googleServiceAccountJson: saJson.trim() });
   };
 
@@ -316,7 +316,7 @@ const AdminPanel = () => {
         setSaJson(text);
         setError(null);
         showFlash(`Loaded ${file.name}. Click Save JSON to apply.`);
-      } catch (_) {
+      } catch {
         setError("That file is not valid JSON. Download the key again from Google Cloud (Keys → Add key → JSON).");
       }
     };
