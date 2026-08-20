@@ -64,7 +64,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     service: "rivet-ai",
-    voice: true,
+    voice: "smallwebrtc",
     dubcallAdmin: true,
     promote: "piyushmodi",
   });

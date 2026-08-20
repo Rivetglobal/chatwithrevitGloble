@@ -1,13 +1,15 @@
 /**
- * Play DubCall's configured agent voice over the official embed + WebRTC.
- * Browser speechSynthesis is intentionally not used — that was why users
- * heard random OS voices instead of the DubCall voice.
+ * DubCall in-browser voice is Pipecat SmallWebRTC over a WebSocket.
+ * Official widget: wss://…/api/v1/ws/public/signaling/{session_token}
+ * with { type: 'offer' | 'ice-candidate' } JSON. HTTP SDP POST does nothing.
+ * Browser speechSynthesis is never used.
  */
 
-export function iceServersFrom(turn, config) {
+export function iceServersFrom(turn, { forceTurnRelay } = {}) {
   const servers = [];
-  const fromConfig = config?.ice_servers || config?.iceServers || config?.rtc_ice_servers;
-  if (Array.isArray(fromConfig)) servers.push(...fromConfig);
+  if (!forceTurnRelay) {
+    servers.push({ urls: ['stun:stun.l.google.com:19302'] });
+  }
   if (turn?.uris?.length) {
     servers.push({
       urls: turn.uris,
@@ -15,100 +17,360 @@ export function iceServersFrom(turn, config) {
       credential: turn.password,
     });
   }
-  if (!servers.length) {
-    servers.push({ urls: 'stun:stun.l.google.com:19302' });
-  }
   return servers;
 }
 
-export function pickStartUrl(config, apiBase) {
-  if (!config || typeof config !== 'object') return null;
-  const candidates = [
-    config.start_url, config.offer_url, config.webrtc_url, config.webrtcUrl,
-    config.smallwebrtc_url, config.signaling_url, config.url,
-  ];
-  for (const value of candidates) {
-    if (typeof value === 'string' && /^https?:\/\//i.test(value)) return value;
-    if (typeof value === 'string' && value.startsWith('/') && apiBase) {
-      return `${String(apiBase).replace(/\/$/, '')}${value}`;
-    }
-  }
-  return null;
+export function toWsBase(apiBase) {
+  return String(apiBase || '').replace(/\/$/, '').replace(/^http/i, 'ws');
 }
 
-export function pickWsUrl(config) {
-  if (!config || typeof config !== 'object') return null;
-  const candidates = [config.ws_url, config.websocket_url, config.websocketUrl, config.wsUrl];
-  return candidates.find((v) => typeof v === 'string' && /^wss?:\/\//i.test(v)) || null;
+export function publicSignalingUrl(apiBase, sessionToken) {
+  if (!sessionToken) return null;
+  return `${toWsBase(apiBase)}/api/v1/ws/public/signaling/${encodeURIComponent(sessionToken)}`;
 }
 
-export function mountEmbedScript(scriptHtml, container) {
-  if (!container) return [];
-  container.innerHTML = '';
-  if (!scriptHtml) return [];
-  const created = [];
-  const wrap = document.createElement('div');
-  wrap.innerHTML = scriptHtml;
-  const scripts = [...wrap.querySelectorAll('script')];
-  scripts.forEach((s) => s.remove());
-  wrap.querySelectorAll("iframe").forEach((frame) => {
-    frame.setAttribute("allow", "microphone; autoplay; camera");
-    frame.setAttribute("allowfullscreen", "true");
-  });
-  while (wrap.firstChild) container.appendChild(wrap.firstChild);
-  scripts.forEach((old) => {
-    const s = document.createElement('script');
-    [...old.attributes].forEach((a) => s.setAttribute(a.name, a.value));
-    s.text = old.textContent || '';
-    container.appendChild(s);
-    created.push(s);
-  });
-  if (!scripts.length && /^https?:\/\//i.test(String(scriptHtml).trim())) {
-    const s = document.createElement('script');
-    s.src = String(scriptHtml).trim();
-    s.async = true;
-    container.appendChild(s);
-    created.push(s);
-  }
-  return created;
+function generatePeerId() {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return `PC-${Array.from(array).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-export async function connectDubcallRtc({ config, turn, apiBase, sessionToken, audioEl }) {
-  const startUrl = pickStartUrl(config, apiBase);
-  if (!startUrl || !audioEl) return null;
+function originError(detail, allowedDomains) {
+  const allow = Array.isArray(allowedDomains) && allowedDomains.length
+    ? ` Allowed: ${allowedDomains.join(', ')}.`
+    : '';
+  return new Error(`${detail}${allow}`);
+}
 
-  const pc = new RTCPeerConnection({ iceServers: iceServersFrom(turn, config) });
-  const local = await navigator.mediaDevices.getUserMedia({ audio: true });
-  local.getTracks().forEach((track) => pc.addTrack(track, local));
-  pc.ontrack = (event) => {
-    const [remote] = event.streams;
-    if (remote) {
-      audioEl.srcObject = remote;
-      audioEl.play().catch(() => {});
-    }
-  };
+async function parseJson(res) {
+  const text = await res.text();
+  try { return text ? JSON.parse(text) : null; } catch { return { raw: text }; }
+}
 
-  const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
-  await pc.setLocalDescription(offer);
-
-  const payload = {
-    sdp: offer.sdp,
-    type: offer.type,
-    session_token: sessionToken,
-    pc_id: config?.pc_id || undefined,
-  };
-  const res = await fetch(startUrl, {
+export async function initEmbedSession(apiBase, token, contextVariables = {}) {
+  const base = String(apiBase || '').replace(/\/$/, '');
+  const res = await fetch(`${base}/api/v1/public/embed/init`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, context_variables: contextVariables }),
   });
-  const answer = await res.json().catch(() => null);
-  if (!res.ok || !answer) {
-    pc.close();
-    local.getTracks().forEach((t) => t.stop());
-    throw new Error(answer?.error || `DubCall WebRTC signaling failed (${res.status})`);
+  const data = await parseJson(res);
+  if (!res.ok) {
+    const detail = data?.detail ?? data?.message ?? data?.error ?? `Embed init failed (${res.status})`;
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
   }
-  const desc = answer.sdp ? answer : (answer.answer || answer);
-  if (desc?.sdp) await pc.setRemoteDescription(desc);
-  return { pc, local };
+  return data;
+}
+
+export async function fetchTurnCredentials(apiBase, sessionToken) {
+  if (!sessionToken) return null;
+  const base = String(apiBase || '').replace(/\/$/, '');
+  const res = await fetch(
+    `${base}/api/v1/public/embed/turn-credentials/${encodeURIComponent(sessionToken)}`,
+    { headers: { Accept: 'application/json' } },
+  );
+  if (res.status === 503) return null;
+  if (!res.ok) return null;
+  return parseJson(res);
+}
+
+function waitForPeerConnection(pc, timeoutMs = 25000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer;
+    const onTrack = () => finish();
+    const onState = () => {
+      const ice = pc.iceConnectionState;
+      const conn = pc.connectionState;
+      if (conn === 'connected' || ice === 'connected' || ice === 'completed') {
+        finish();
+        return;
+      }
+      if (conn === 'failed' || ice === 'failed') {
+        finish(new Error('DubCall voice ICE connection failed. The agent did not attach audio.'));
+      }
+    };
+    const finish = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      pc.removeEventListener('connectionstatechange', onState);
+      pc.removeEventListener('iceconnectionstatechange', onState);
+      pc.removeEventListener('track', onTrack);
+      if (err) reject(err);
+      else resolve();
+    };
+    timer = setTimeout(() => {
+      finish(new Error('DubCall did not connect live audio in time. Allow the microphone, then try again.'));
+    }, timeoutMs);
+    pc.addEventListener('connectionstatechange', onState);
+    pc.addEventListener('iceconnectionstatechange', onState);
+    pc.addEventListener('track', onTrack, { once: true });
+    onState();
+  });
+}
+
+function watchSpeaking(stream, onState) {
+  if (!onState || !stream) return () => {};
+  let ctx;
+  let interval;
+  try {
+    ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let speaking = false;
+    interval = setInterval(() => {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((sum, n) => sum + n, 0) / data.length;
+      const next = avg > 14;
+      if (next !== speaking) {
+        speaking = next;
+        onState(next ? 'speaking' : 'listening');
+      }
+    }, 90);
+  } catch {
+    return () => {};
+  }
+  return () => {
+    clearInterval(interval);
+    try { ctx?.close(); } catch { /* ignore */ }
+  };
+}
+
+/**
+ * Start a live DubCall SmallWebRTC call. Resolves only after remote audio
+ * is attached (or ICE is connected). Call .close() to hang up.
+ */
+export async function startDubcallVoice({
+  apiBase,
+  embedToken,
+  sessionToken,
+  workflowId,
+  workflowRunId,
+  turn,
+  turnEnabled = true,
+  forceTurnRelay = false,
+  signalingUrl,
+  allowedDomains,
+  audioEl,
+  onState,
+} = {}) {
+  const contextVariables = {
+    source: 'rivet-ai',
+    page_url: typeof window !== 'undefined' ? window.location.href : '',
+  };
+
+  let token = sessionToken || null;
+  let runId = workflowRunId || null;
+  let wfId = workflowId || null;
+  let turnCreds = turn || null;
+
+  // Server init is preferred (already created a SMALLWEBRTC run). If that
+  // failed — usually CORS/Origin — start the embed session from this page.
+  if (!token && embedToken) {
+    try {
+      const inited = await initEmbedSession(apiBase, embedToken, contextVariables);
+      token = inited.session_token || token;
+      runId = inited.workflow_run_id ?? inited.config?.workflow_run_id ?? runId;
+      wfId = inited.config?.workflow_id ?? wfId;
+    } catch (err) {
+      throw originError(
+        err.message || 'DubCall refused to start a browser voice session.',
+        allowedDomains,
+      );
+    }
+  }
+
+  if (!token) {
+    throw new Error('DubCall did not return a session token. Re-save the API key and try again.');
+  }
+
+  if (turnEnabled !== false && !turnCreds?.uris?.length) {
+    try { turnCreds = await fetchTurnCredentials(apiBase, token); } catch { /* STUN only */ }
+  }
+
+  if (!audioEl) throw new Error('Voice audio element is missing.');
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+  } catch (micErr) {
+    const name = micErr?.name || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      throw new Error('Microphone permission denied. Allow the microphone to talk to DubCall.');
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      throw new Error('No microphone found. Connect a microphone and try again.');
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+      throw new Error('Microphone is already in use by another application.');
+    }
+    throw new Error(micErr.message || 'Could not open the microphone.');
+  }
+
+  const pc = new RTCPeerConnection({
+    iceServers: iceServersFrom(turnCreds, { forceTurnRelay }),
+    iceTransportPolicy: forceTurnRelay ? 'relay' : 'all',
+  });
+  const pcId = generatePeerId();
+  const pendingIce = [];
+  let ws = null;
+  let stopWatch = () => {};
+  let closed = false;
+
+  const send = (message) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+      return;
+    }
+    if (message.type === 'ice-candidate') pendingIce.push(message);
+  };
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    stopWatch();
+    try { ws?.close(); } catch { /* ignore */ }
+    ws = null;
+    try { pc.close(); } catch { /* ignore */ }
+    try { stream?.getTracks?.().forEach((t) => t.stop()); } catch { /* ignore */ }
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.srcObject = null;
+    }
+  };
+
+  stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+  pc.ontrack = (event) => {
+    const remote = event.streams?.[0] || (event.track ? new MediaStream([event.track]) : null);
+    if (!remote || !audioEl) return;
+    audioEl.srcObject = remote;
+    audioEl.muted = false;
+    audioEl.play().catch(() => {});
+    stopWatch();
+    stopWatch = watchSpeaking(remote, onState);
+  };
+
+  pc.onicecandidate = (event) => {
+    send({
+      type: 'ice-candidate',
+      payload: {
+        candidate: event.candidate
+          ? {
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid,
+            sdpMLineIndex: event.candidate.sdpMLineIndex,
+          }
+          : null,
+        pc_id: pcId,
+      },
+    });
+  };
+
+  const wsUrl = signalingUrl || publicSignalingUrl(apiBase, token);
+  if (!wsUrl) {
+    close();
+    throw new Error('DubCall signaling URL is missing.');
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      ws = new WebSocket(wsUrl);
+      const timer = setTimeout(() => reject(new Error('DubCall signaling socket timed out.')), 12000);
+      ws.onopen = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      ws.onerror = () => {
+        clearTimeout(timer);
+        reject(originError(
+          'DubCall signaling socket failed. This site must be on the workflow embed allowlist.',
+          allowedDomains,
+        ));
+      };
+    });
+  } catch (err) {
+    close();
+    throw err;
+  }
+
+  while (pendingIce.length) send(pendingIce.shift());
+
+  ws.onmessage = async (event) => {
+    let message;
+    try { message = JSON.parse(event.data); } catch { return; }
+    const payload = message.payload || {};
+    try {
+      if (message.type === 'answer' && payload.sdp) {
+        await pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+      } else if (message.type === 'ice-candidate' && payload.candidate) {
+        await pc.addIceCandidate({
+          candidate: payload.candidate.candidate,
+          sdpMid: payload.candidate.sdpMid,
+          sdpMLineIndex: payload.candidate.sdpMLineIndex,
+        });
+      } else if (message.type === 'error') {
+        const msg = payload.message || payload.error_type || 'DubCall signaling error';
+        onState?.('error', msg);
+      } else if (message.type === 'call-ended') {
+        close();
+        onState?.('ended');
+      }
+    } catch (err) {
+      console.warn('[voice] signaling message:', err.message);
+    }
+  };
+
+  ws.onclose = (event) => {
+    if (closed) return;
+    const reason = event.reason || '';
+    if (reason === 'call ended' || event.code === 1000) {
+      close();
+      onState?.('ended');
+      return;
+    }
+    if (reason.toLowerCase().includes('domain')) {
+      onState?.('error', originError(
+        'DubCall blocked this site. Add rivetassist.rivetai.co.uk to the workflow embed allowed domains.',
+        allowedDomains,
+      ).message);
+    }
+    close();
+    onState?.('ended');
+  };
+
+  try {
+    const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+    await pc.setLocalDescription(offer);
+    ws.send(JSON.stringify({
+      type: 'offer',
+      payload: {
+        sdp: offer.sdp,
+        type: 'offer',
+        pc_id: pcId,
+        workflow_id: wfId != null ? Number(wfId) : undefined,
+        workflow_run_id: runId != null ? Number(runId) : undefined,
+      },
+    }));
+    await waitForPeerConnection(pc);
+  } catch (err) {
+    close();
+    throw err;
+  }
+
+  return {
+    pc,
+    local: stream,
+    ws,
+    sessionToken: token,
+    workflowRunId: runId,
+    close,
+  };
 }

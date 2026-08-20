@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Mic, MicOff, GraphicEq } from "@mui/icons-material";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
 import voiceService from "../../services/voiceService";
-import { connectDubcallRtc, mountEmbedScript } from "../../services/dubcallVoice";
+import { startDubcallVoice } from "../../services/dubcallVoice";
 import { C, font } from "../../theme";
 
 const STATUS_COPY = {
@@ -37,10 +37,8 @@ const VoiceMode = ({ user }) => {
   const [runId, setRunId] = useState(null);
   const [live, setLive] = useState(false);
 
-  const embedRef = useRef(null);
   const audioRef = useRef(null);
   const rtcRef = useRef(null);
-  const localRef = useRef(null);
   const liveRef = useRef(false);
 
   useEffect(() => { liveRef.current = live; }, [live]);
@@ -73,15 +71,14 @@ const VoiceMode = ({ user }) => {
   }, []);
 
   const teardown = useCallback(() => {
-    try { rtcRef.current?.pc?.close(); } catch (_) { /* ignore */ }
+    liveRef.current = false;
+    try { rtcRef.current?.close?.(); } catch { /* ignore */ }
+    try { rtcRef.current?.pc?.close(); } catch { /* ignore */ }
     rtcRef.current = null;
-    try { localRef.current?.getTracks?.().forEach((t) => t.stop()); } catch (_) { /* ignore */ }
-    localRef.current = null;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.srcObject = null;
     }
-    if (embedRef.current) embedRef.current.innerHTML = "";
   }, []);
 
   const endCall = useCallback(() => {
@@ -115,44 +112,57 @@ const VoiceMode = ({ user }) => {
     try { localStorage.setItem(WF_STORAGE_KEY, String(id)); } catch { /* ignore */ }
     setPhase("connecting");
     setLive(true);
+    liveRef.current = true;
     teardown();
+    liveRef.current = true;
     try {
       const session = await voiceService.createSession(id);
+      if (!liveRef.current) return;
       setWorkflowName(session?.workflow?.name || "");
-      setRunId(session?.run?.id || null);
       setVoiceName(voiceLabel(session?.voice));
 
-      if (!session?.connected) {
+      if (!session?.ready && !session?.embedToken && !session?.sessionToken) {
         throw new Error(
           session?.error
           || session?.embedError
-          || "DubCall started a run, but live voice did not connect. Add this site to the workflow embed allowed domains.",
+          || "DubCall is not ready for live voice. Re-save the API key in Admin → DubCall AI.",
         );
       }
 
-      if (session.embedScript) {
-        mountEmbedScript(session.embedScript, embedRef.current);
+      const handle = await startDubcallVoice({
+        apiBase: session.apiBase,
+        embedToken: session.embedToken,
+        sessionToken: session.sessionToken,
+        workflowId: session.workflow?.id,
+        workflowRunId: session.run?.id,
+        turn: session.turn,
+        turnEnabled: session.turnEnabled,
+        forceTurnRelay: session.forceTurnRelay,
+        signalingUrl: session.signalingUrl,
+        allowedDomains: session.allowedDomains,
+        audioEl: audioRef.current,
+        onState: (next, detail) => {
+          if (!liveRef.current) return;
+          if (next === "speaking") setPhase("speaking");
+          else if (next === "listening") setPhase("listening");
+          else if (next === "ended") {
+            teardown();
+            setLive(false);
+            setPhase("ended");
+          } else if (next === "error" && detail) {
+            setError(detail);
+          }
+        },
+      });
+      if (!liveRef.current) {
+        try { handle.close(); } catch { /* ignore */ }
+        return;
       }
-
-      try {
-        const rtc = await connectDubcallRtc({
-          config: session.config,
-          turn: session.turn,
-          apiBase: session.apiBase,
-          sessionToken: session.sessionToken,
-          audioEl: audioRef.current,
-        });
-        if (rtc) {
-          rtcRef.current = rtc;
-          localRef.current = rtc.local;
-        }
-      } catch (rtcErr) {
-        console.warn("[voice] WebRTC helper:", rtcErr.message);
-        if (!session.embedScript) throw rtcErr;
-      }
-
+      rtcRef.current = handle;
+      setRunId(handle?.workflowRunId || session?.run?.id || null);
       setPhase("listening");
     } catch (err) {
+      if (!liveRef.current) return;
       teardown();
       setLive(false);
       setPhase("error");
@@ -180,21 +190,11 @@ const VoiceMode = ({ user }) => {
       background:
         "radial-gradient(ellipse 70% 55% at 50% 42%, rgba(15,118,110,0.08) 0%, transparent 70%)",
     }}>
-      <audio ref={audioRef} autoPlay playsInline style={{ display: "none" }} />
-      <div
-        ref={embedRef}
-        id="dubcall-embed-host"
-        style={{
-          position: "fixed",
-          left: 12,
-          bottom: 12,
-          width: 280,
-          height: 72,
-          overflow: "hidden",
-          opacity: 0.01,
-          zIndex: 0,
-        }}
-        aria-hidden="true"
+      <audio
+        ref={audioRef}
+        autoPlay
+        playsInline
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
       />
 
       <div className={orbClass}>
@@ -227,10 +227,10 @@ const VoiceMode = ({ user }) => {
         </h2>
         <p style={{ margin: "8px 0 0", color: C.muted, fontSize: "0.88rem", lineHeight: 1.55 }}>
           {!configured && "An admin only needs to save a DubCall API key. Then pick any workflow here — no extra setup."}
-          {configured && !live && "Pick any DubCall workflow, then start. You can switch agents at any time."}
+          {configured && !live && "Pick any DubCall workflow, then start. The agent speaks with its DubCall voice."}
           {configured && live && (
             <>
-              {workflowName ? `Running ${workflowName}` : "DubCall connected"}
+              {workflowName ? `Live on ${workflowName}` : "DubCall voice is live"}
               {runId ? ` · run #${runId}` : ""}
               {voiceName ? ` · ${voiceName}` : ""}
             </>

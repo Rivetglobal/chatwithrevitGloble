@@ -45,13 +45,11 @@ exports.createSession = async (req, res) => {
     let detail = null;
     try { detail = await dubcall.getWorkflowDetail(workflow.id, cfg); } catch (_) { /* optional */ }
     const voice = dubcall.extractVoice(detail) || dubcall.extractVoice(workflow);
+    const health = await dubcall.getPlatformHealth(cfg);
 
-    const displayName = req.user?.username
-      ? `Rivet AI · ${req.user.username}`
-      : 'Rivet AI voice';
-
-    const run = await dubcall.createVoiceRun(workflow.id, cfg, displayName);
-
+    // Browser voice is SmallWebRTC via the public embed session — NOT a
+    // mode:"voice" run (those are telephony / console test calls and never
+    // attach in-app audio).
     let embed = null;
     let session = null;
     let turn = null;
@@ -61,42 +59,57 @@ exports.createSession = async (req, res) => {
       if (!embed?.token) {
         throw new Error('DubCall did not return an embed token for this workflow.');
       }
-      session = await dubcall.initEmbedSession(embed.token, cfg, {
-        source: 'rivet-ai',
-        user: req.user?.username || '',
-      }, req);
       try {
-        turn = await dubcall.getTurnCredentials(session?.session_token, cfg);
-      } catch (turnErr) {
-        console.warn('[voice] TURN credentials:', turnErr.message);
+        session = await dubcall.initEmbedSession(embed.token, cfg, {
+          source: 'rivet-ai',
+          user: req.user?.username || '',
+          page_url: req.headers?.referer || '',
+        }, req);
+      } catch (initErr) {
+        // Browser can still POST /public/embed/init itself (correct Origin).
+        embedError = initErr.message;
+        console.warn('[voice] server embed init:', initErr.message);
+      }
+      if (session?.session_token) {
+        try {
+          turn = await dubcall.getTurnCredentials(session.session_token, cfg);
+        } catch (turnErr) {
+          console.warn('[voice] TURN credentials:', turnErr.message);
+        }
       }
     } catch (embedErr) {
       embedError = embedErr.message;
       console.error('[voice] DubCall live voice failed:', embedErr.message);
     }
 
-    const connected = !!(session?.session_token || embed?.embed_script || session?.config);
+    const sessionToken = session?.session_token || null;
+    const ready = !!(embed?.token);
+    const signalingUrl = dubcall.publicSignalingUrl(cfg.apiBase, sessionToken);
     res.json({
-      ok: connected,
-      connected,
+      ok: ready,
+      ready,
+      connected: false,
+      transport: 'smallwebrtc',
       apiBase: cfg.apiBase,
+      signalingUrl,
       workflow: { id: workflow.id, name: workflow.name, uuid: workflow.uuid || null },
       voice,
       run: {
-        id: run?.id ?? session?.workflow_run_id ?? null,
-        mode: run?.mode || 'voice',
-        name: run?.name || displayName,
+        id: session?.workflow_run_id ?? session?.config?.workflow_run_id ?? null,
+        mode: 'smallwebrtc',
+        name: `Rivet AI · ${req.user?.username || 'voice'}`,
       },
       embedToken: embed?.token || null,
-      embedScript: embed?.embed_script || null,
       allowedDomains: embed?.allowed_domains || null,
-      sessionToken: session?.session_token || null,
-      config: session?.config || null,
+      sessionToken,
+      configKeys: dubcall.configKeys(session?.config),
       turn,
+      turnEnabled: health?.turn_enabled !== false,
+      forceTurnRelay: !!health?.force_turn_relay,
       embedError,
-      error: connected
+      error: ready
         ? null
-        : (embedError || 'DubCall run started, but the live voice socket did not connect. Check embed allowed domains for this site.'),
+        : (embedError || 'DubCall did not return an embed token. Re-save the API key in Admin → DubCall AI.'),
     });
   } catch (err) {
     console.error('voice createSession error:', err);
