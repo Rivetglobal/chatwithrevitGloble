@@ -161,6 +161,31 @@ async function createVoiceRun(workflowId, cfg, name) {
   });
 }
 
+function resolveClientOrigin(req) {
+  const candidates = [
+    req?.headers?.origin,
+    req?.headers?.referer,
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    process.env.APP_URL,
+    process.env.PUBLIC_APP_URL,
+    'https://rivetassist.rivetai.co.uk',
+  ];
+  for (const value of candidates) {
+    if (!value) continue;
+    try {
+      return new URL(value).origin;
+    } catch {
+      try {
+        return new URL(`https://${String(value).replace(/^https?:\/\//, '')}`).origin;
+      } catch {
+        /* try next */
+      }
+    }
+  }
+  return 'https://rivetassist.rivetai.co.uk';
+}
+
 function collectAllowedDomains(req) {
   const hosts = new Set([
     'localhost',
@@ -170,6 +195,7 @@ function collectAllowedDomains(req) {
     'rivetai.co.uk',
     'www.rivetai.co.uk',
     'apirivetassist.rivetai.co.uk',
+    '*.rivetai.co.uk',
   ]);
   const extras = [
     process.env.FRONTEND_URL,
@@ -192,6 +218,31 @@ function collectAllowedDomains(req) {
   return Array.from(hosts);
 }
 
+function toWsBase(apiBase) {
+  return String(apiBase || DEFAULT_BASE).replace(/\/$/, '').replace(/^http/i, 'ws');
+}
+
+function publicSignalingUrl(apiBase, sessionToken) {
+  if (!sessionToken) return null;
+  return `${toWsBase(apiBase)}/api/v1/ws/public/signaling/${encodeURIComponent(sessionToken)}`;
+}
+
+function configKeys(config) {
+  if (!config || typeof config !== 'object') return [];
+  return Object.keys(config).sort();
+}
+
+async function getPlatformHealth(cfg) {
+  try {
+    return await dubcallFetch('/api/v1/health', {
+      apiKey: cfg?.apiKey,
+      apiBase: cfg?.apiBase,
+    });
+  } catch (_) {
+    return null;
+  }
+}
+
 async function ensureEmbedToken(workflowId, cfg, req) {
   const allowed_domains = collectAllowedDomains(req);
   // Always PUT/POST the allowlist so production hosts are on the token.
@@ -200,7 +251,7 @@ async function ensureEmbedToken(workflowId, cfg, req) {
     method: 'POST',
     apiKey: cfg?.apiKey,
     apiBase: cfg?.apiBase,
-    origin: req?.headers?.origin,
+    origin: resolveClientOrigin(req),
     body: {
       allowed_domains,
       expires_in_days: 365,
@@ -214,11 +265,12 @@ async function ensureEmbedToken(workflowId, cfg, req) {
 }
 
 async function initEmbedSession(token, cfg, contextVariables, req) {
+  const origin = resolveClientOrigin(req);
   return dubcallFetch('/api/v1/public/embed/init', {
     method: 'POST',
     apiKey: cfg?.apiKey,
     apiBase: cfg?.apiBase,
-    origin: req?.headers?.origin,
+    origin,
     body: {
       token,
       context_variables: contextVariables || undefined,
@@ -276,6 +328,10 @@ module.exports = {
   ensureEmbedToken,
   initEmbedSession,
   getTurnCredentials,
+  getPlatformHealth,
   extractVoice,
   collectAllowedDomains,
+  resolveClientOrigin,
+  publicSignalingUrl,
+  configKeys,
 };

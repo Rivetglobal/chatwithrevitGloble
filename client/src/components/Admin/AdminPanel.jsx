@@ -371,7 +371,7 @@ const AdminPanel = () => {
         <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
           <SectionHeader
             title="DubCall AI (Voice)"
-            sub="Save an API key once. Workflows can be switched anytime in Voice mode — no extra setup."
+            sub="Save an API key once. Voice mode talks to the live DubCall agent over WebRTC — it does not use browser text-to-speech."
           />
           <StatusBadge configured={!!dubcall?.configured} source={dubcall?.apiKey?.source || "none"} />
 
