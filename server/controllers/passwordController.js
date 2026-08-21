@@ -39,12 +39,12 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     const resetUrl = `${resolveAppUrl(req)}/reset-password?token=${rawToken}`;
-    const { html, text } = buildResetEmail({ name: user.username, resetUrl });
+    const { html, text } = buildResetEmail({ name: user.name || user.username, resetUrl });
 
     try {
       await sendMail({
         to: user.email,
-        toName: user.username,
+        toName: user.name || user.username,
         subject: "Reset your Rivet AI password",
         html,
         text,

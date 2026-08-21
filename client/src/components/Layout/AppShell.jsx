@@ -8,6 +8,7 @@ import {
   Folder,
   Logout,
   Menu as MenuIcon,
+  PersonOutline,
 } from "@mui/icons-material";
 import authService from "../../services/authService";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
@@ -16,6 +17,7 @@ import { C, font, menuPaperSx } from "../../theme";
 const NAV_ITEMS = [
   { icon: <ChatBubbleIcon sx={{ fontSize: 18 }} />, label: "Conversations", id: "chat", path: "/chat" },
   { icon: <Folder sx={{ fontSize: 18 }} />, label: "Projects", id: "projects", path: "/projects" },
+  { icon: <PersonOutline sx={{ fontSize: 18 }} />, label: "Profile", id: "profile", path: "/profile" },
 ];
 
 const Sidebar = ({
@@ -245,16 +247,19 @@ const AppShell = ({
             padding: "5px 12px 5px 6px",
           }}
         >
-          <Avatar sx={{ width: 28, height: 28, backgroundColor: C.sidebar, fontSize: "0.75rem", fontWeight: 700 }}>
-            {user?.username?.[0]?.toUpperCase() || "U"}
+          <Avatar
+            src={user?.picture || undefined}
+            sx={{ width: 28, height: 28, backgroundColor: C.sidebar, fontSize: "0.75rem", fontWeight: 700 }}
+          >
+            {(user?.name || user?.username || "U")[0]?.toUpperCase()}
           </Avatar>
           {!isMobile && (
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: "0.8rem", fontWeight: 600, color: C.text, lineHeight: 1.2, textTransform: "capitalize" }}>
-                {user?.username}
+                {user?.name || user?.username}
               </div>
               <div style={{ fontSize: "0.65rem", color: C.muted }}>
-                {user?.isAdmin ? "Administrator" : "Workspace"}
+                {user?.isAdmin ? "Administrator" : (user?.jobTitle || user?.organisation || "Workspace")}
               </div>
             </div>
           )}
@@ -265,6 +270,15 @@ const AppShell = ({
           onClose={() => setAnchorEl(null)}
           PaperProps={{ sx: menuPaperSx }}
         >
+          <MenuItem
+            onClick={() => {
+              setAnchorEl(null);
+              navigate("/profile");
+            }}
+            sx={{ fontFamily: font, fontSize: "0.875rem", gap: 1, color: C.mutedLight, "&:hover": { backgroundColor: C.cardHover, color: C.text } }}
+          >
+            <PersonOutline sx={{ fontSize: 16 }} /> Profile
+          </MenuItem>
           {user?.isAdmin && (
             <MenuItem
               onClick={() => {

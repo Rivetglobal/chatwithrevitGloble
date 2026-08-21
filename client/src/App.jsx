@@ -10,6 +10,7 @@ import Chat from './components/Chat/Chat';
 import Projects from './components/Projects/Projects';
 import ProjectDetail from './components/Projects/ProjectDetail';
 import AdminPanel from './components/Admin/AdminPanel';
+import Profile from './components/Profile/Profile';
 import authService from './services/authService';
 
 const PrivateRoute = ({ children }) => {
@@ -56,6 +57,14 @@ const App = () => {
             element={
               <PrivateRoute>
                 <ProjectDetail />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
               </PrivateRoute>
             }
           />
