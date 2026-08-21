@@ -114,6 +114,19 @@ const authService = {
     return user;
   },
 
+  updateProfile: async (payload) => {
+    const token = authService.getToken();
+    if (!token) throw new Error('Not authenticated');
+    const response = await axios.put(`${API_BASE_URL}/profile`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const user = response.data.user;
+    if (user) {
+      try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch { /* ignore */ }
+    }
+    return user;
+  },
+
   forgotPassword: async (email) => {
     const response = await axios.post(`${API_BASE_URL}/forgot-password`, { email });
     return response.data;

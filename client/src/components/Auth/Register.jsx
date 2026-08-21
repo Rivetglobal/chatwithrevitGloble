@@ -13,7 +13,7 @@ import { authBlur, authField, authFocus, authLabel } from "../Layout/authStyles"
 import { C } from "../../theme";
 
 const Register = () => {
-  const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+  const [formData, setFormData] = useState({ name: "", username: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,6 +70,25 @@ const Register = () => {
       {error && <AuthAlert>{error}</AuthAlert>}
 
       <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={authLabel}>Full name</label>
+          <div style={{ position: "relative" }}>
+            <User size={16} style={{ position: "absolute", left: 13, top: 14, color: "#94A3B8" }} />
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Piyush Modi"
+              required
+              autoComplete="name"
+              style={authField}
+              onFocus={authFocus}
+              onBlur={authBlur}
+            />
+          </div>
+        </div>
+
         <div style={{ marginBottom: 14 }}>
           <label style={authLabel}>Username</label>
           <div style={{ position: "relative" }}>
