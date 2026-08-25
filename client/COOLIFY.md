@@ -15,7 +15,7 @@ Optional but recommended: add GitHub Actions secrets so merges auto-trigger Cool
 - `COOLIFY_WEBHOOK_URL` — Deploy webhook for the **frontend** app
 - `COOLIFY_API_WEBHOOK_URL` — Deploy webhook for the **API** app
 
-Without `COOLIFY_WEBHOOK_URL`, the “Trigger production deploy” Action fails on purpose so a silent no-op cannot look green.
+Without `COOLIFY_WEBHOOK_URL`, the Action still passes and prints a warning. Coolify Git auto-deploy (if enabled on the frontend app) may rebuild on its own; otherwise Redeploy the frontend app manually.
 
 ---
 
