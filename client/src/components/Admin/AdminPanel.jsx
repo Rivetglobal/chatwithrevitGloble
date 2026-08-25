@@ -4,6 +4,7 @@ import { ArrowBack, Visibility, VisibilityOff, CheckCircle, Cancel, UploadFile }
 import authService from "../../services/authService";
 import adminService from "../../services/adminService";
 import AppShell from "../Layout/AppShell";
+import UsageDashboard from "./UsageDashboard";
 import { C, font } from "../../theme";
 
 const DEFAULT_INTEG = {
@@ -165,6 +166,7 @@ const AdminPanel = () => {
   const [emailFrom, setEmailFrom]           = useState("");
   const [emailFromName, setEmailFromName]   = useState("");
   const [showSmtpPass, setShowSmtpPass]     = useState(false);
+  const [tab, setTab] = useState("dashboard");
 
   const showFlash = (msg) => { setFlash(msg); setTimeout(() => setFlash(null), 3500); };
 
@@ -325,14 +327,14 @@ const AdminPanel = () => {
   };
 
   if (loading) return (
-    <AppShell user={user} active="projects" title="Admin" loading />
+    <AppShell user={user} active="admin" title="Admin" loading />
   );
 
   return (
-    <AppShell user={user} active="projects" title="Admin panel" subtitle="Workspace configuration" sidebarOpen={sidebarOpen} onSidebarOpenChange={setSidebarOpen}>
+    <AppShell user={user} active="admin" title="Admin panel" subtitle="Workspace configuration" sidebarOpen={sidebarOpen} onSidebarOpenChange={setSidebarOpen}>
     <div className="rv-scroll" style={{ flex: 1, overflowY: "auto" }}>
     <div style={{ padding: "28px 24px 48px" }}>
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <div style={{ maxWidth: tab === "dashboard" ? 980 : 760, margin: "0 auto" }}>
 
         <button type="button" onClick={() => navigate("/projects")}
           style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 24, padding: "6px 12px", border: `1px solid ${C.border}`, borderRadius: 8, backgroundColor: C.surface, color: C.mutedLight, cursor: "pointer", fontSize: "0.78rem", fontFamily: font }}>
@@ -340,13 +342,46 @@ const AdminPanel = () => {
         </button>
 
         <h1 style={{ fontSize: "1.4rem", margin: "0 0 4px" }}>Admin panel</h1>
-        <p style={{ color: C.mutedLight, fontSize: "0.85rem", margin: "0 0 28px" }}>
-          All settings saved here are stored in the database and take effect immediately — no server restart or environment variable needed.
+        <p style={{ color: C.mutedLight, fontSize: "0.85rem", margin: "0 0 16px" }}>
+          {tab === "dashboard"
+            ? "See how much time every user spends in each Rivet tool."
+            : "Settings are stored in the database and take effect immediately — no server restart needed."}
         </p>
 
-        {flash && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#ECFDF5", border: `1px solid #A7F3D0`, color: C.ok, fontSize: "0.82rem", marginBottom: 16 }}>{flash}</div>}
-        {error && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#FEF2F2", border: `1px solid #FECACA`, color: C.error, fontSize: "0.82rem", marginBottom: 16 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 6, marginBottom: 22, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 4, width: "fit-content" }}>
+          {[{ id: "dashboard", label: "Dashboard" }, { id: "settings", label: "Settings" }].map((item) => {
+            const selected = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                style={{
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  cursor: "pointer",
+                  fontFamily: font,
+                  fontSize: "0.82rem",
+                  fontWeight: 650,
+                  background: selected ? C.surface : "transparent",
+                  color: selected ? C.text : C.muted,
+                  boxShadow: selected ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
+                }}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
 
+        {flash && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#ECFDF5", border: `1px solid #A7F3D0`, color: C.ok, fontSize: "0.82rem", marginBottom: 16 }}>{flash}</div>}
+        {error && <div style={{ padding: "10px 14px", borderRadius: 8, backgroundColor: "#FEF2F2", border: "1px solid #FECACA", color: C.error, fontSize: "0.82rem", marginBottom: 16 }}>{error}</div>}
+
+        {tab === "dashboard" && user?.isAdmin && <UsageDashboard />}
+
+        {tab === "settings" && (
+        <>
         {/* ── AI / LLM Keys ──────────────────────────────────────────────── */}
         <div style={{ backgroundColor: C.card, borderRadius: 12, padding: "20px 22px", border: `1px solid ${C.border}`, marginBottom: 20 }}>
           <SectionHeader title="AI keys" sub="Used by the chat and project assistants. Keys saved here override the server environment variables." />
@@ -595,6 +630,8 @@ const AdminPanel = () => {
               )}
             </div>
           </div>
+        </>
+        )}
 
       </div>
     </div>

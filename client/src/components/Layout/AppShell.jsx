@@ -12,6 +12,7 @@ import {
 } from "@mui/icons-material";
 import authService from "../../services/authService";
 import rivetLogo from "../../assets/rivetGlobalpng.png";
+import useActivityTracker from "../../hooks/useActivityTracker";
 import { C, font, menuPaperSx } from "../../theme";
 
 const NAV_ITEMS = [
@@ -156,6 +157,7 @@ const AppShell = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [anchorEl, setAnchorEl] = React.useState(null);
+  useActivityTracker(active, !!user && !loading);
 
   const closeSidebar = () => onSidebarOpenChange?.(false);
   const toggleSidebar = () => onSidebarOpenChange?.((open) => !open);

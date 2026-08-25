@@ -84,6 +84,7 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/voice", require("./routes/voiceRoutes"));
+app.use("/api/activity", require("./routes/activityRoutes"));
 
 // SPA fallback — all non-API routes serve the React app
 app.get("*", (req, res) => {

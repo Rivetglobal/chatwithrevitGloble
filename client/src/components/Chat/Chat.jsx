@@ -424,7 +424,7 @@ const Chat = () => {
   return (
     <AppShell
       user={user}
-      active="chat"
+      active={mode === "voice" ? "voice" : "chat"}
       title={mode === "voice" ? "Voice" : (currentTitle || "Conversations")}
       subtitle={mode === "voice" ? "Talk with Rivet" : "NHS compliance assistant"}
       loading={loading}
