@@ -19,6 +19,22 @@ function formatHours(seconds) {
   return h.toFixed(3);
 }
 
+function formatCell(seconds, messages) {
+  const time = formatDuration(seconds);
+  const msgs = Number(messages) || 0;
+  if (time === "—" && !msgs) return "—";
+  if (!msgs) return time;
+  if (time === "—") return `${msgs} msg${msgs === 1 ? "" : "s"}`;
+  return `${time} · ${msgs} msg${msgs === 1 ? "" : "s"}`;
+}
+
+function activitySummary(u) {
+  const parts = [];
+  if (u.totalMessages) parts.push(`${u.totalMessages} message${u.totalMessages === 1 ? "" : "s"}`);
+  if (u.conversations) parts.push(`${u.conversations} chat${u.conversations === 1 ? "" : "s"}`);
+  if (u.projects) parts.push(`${u.projects} project${u.projects === 1 ? "" : "s"}`);
+  return parts.length ? parts.join(" · ") : "No activity yet";
+}
 function timeAgo(value) {
   if (!value) return "Never";
   const t = new Date(value).getTime();
@@ -46,7 +62,7 @@ const card = {
 };
 
 const UsageDashboard = () => {
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState("all");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,8 +93,7 @@ const UsageDashboard = () => {
         <div>
           <div style={{ fontSize: "1rem", fontWeight: 700, color: C.text }}>Usage dashboard</div>
           <div style={{ fontSize: "0.78rem", color: C.muted, marginTop: 4, lineHeight: 1.5 }}>
-            Time each person spends in Chat, Voice, Projects, Profile, and Admin. Ranked by hours.
-            Past chat and project activity is included from message history; today uses live tracking.
+            Real usage from stored chat messages and live page tracking. Chat, Voice, and Projects time comes from message history; Profile and Admin from live tracking.
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 999, padding: 3 }}>
@@ -123,7 +138,7 @@ const UsageDashboard = () => {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
             {[
-              { label: "Total time", value: formatDuration(data.totals?.seconds), sub: `${formatHours(data.totals?.seconds)} hours` },
+              { label: "Total time", value: formatDuration(data.totals?.seconds), sub: `${formatHours(data.totals?.seconds)} hours · ${data.totals?.messages || 0} messages` },
               { label: "People", value: String(data.totals?.users ?? 0), sub: `${data.totals?.activeUsers || 0} with activity` },
               { label: "Most used", value: data.mostUsed?.label || "—", sub: formatDuration(data.mostUsed?.seconds) },
               { label: "Least used", value: data.leastUsed?.label || "—", sub: formatDuration(data.leastUsed?.seconds) },
@@ -143,7 +158,7 @@ const UsageDashboard = () => {
               <div key={tool.tool} style={{ marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: "0.8rem", marginBottom: 5 }}>
                   <span style={{ fontWeight: 650, color: C.text }}>#{tool.rank} {tool.label}</span>
-                  <span style={{ color: C.muted }}>{formatDuration(tool.seconds)} · {(tool.share * 100).toFixed(0)}%</span>
+                  <span style={{ color: C.muted }}>{formatDuration(tool.seconds)} · {tool.messages || 0} msgs · {(tool.share * 100).toFixed(0)}%</span>
                 </div>
                 <div style={{ height: 8, borderRadius: 999, background: C.bg, overflow: "hidden" }}>
                   <div style={{
@@ -155,9 +170,9 @@ const UsageDashboard = () => {
                 </div>
               </div>
             ))}
-            {!data.totals?.seconds && (
+            {!data.totals?.seconds && !data.totals?.messages && (
               <div style={{ fontSize: "0.8rem", color: C.muted, lineHeight: 1.5 }}>
-                No time recorded yet. Rankings fill in from past chats and as people use Chat, Voice, Projects, and Profile.
+                No activity in this period yet. Switch to All time to see full history, or wait as people use Chat, Voice, and Projects.
               </div>
             )}
           </div>
@@ -183,11 +198,12 @@ const UsageDashboard = () => {
                       <td style={{ padding: "10px 12px", minWidth: 180 }}>
                         <div style={{ fontWeight: 650, color: C.text }}>{u.name || u.username}</div>
                         <div style={{ color: C.muted, marginTop: 2 }}>{u.email}{u.isAdmin ? " · admin" : ""}</div>
+                        <div style={{ color: C.muted, marginTop: 3, fontSize: "0.72rem" }}>{activitySummary(u)}</div>
                       </td>
-                      <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text, whiteSpace: "nowrap" }}>{formatDuration(u.totalSeconds)}</td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatDuration(u.byTool?.chat)}</td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatDuration(u.byTool?.voice)}</td>
-                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatDuration(u.byTool?.projects)}</td>
+                      <td style={{ padding: "10px 12px", fontWeight: 700, color: C.text, whiteSpace: "nowrap" }}>{formatCell(u.totalSeconds, u.totalMessages)}</td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatCell(u.byTool?.chat, u.messagesByTool?.chat)}</td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatCell(u.byTool?.voice, u.messagesByTool?.voice)}</td>
+                      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatCell(u.byTool?.projects, u.messagesByTool?.projects)}</td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatDuration(u.byTool?.profile)}</td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{formatDuration(u.byTool?.admin)}</td>
                       <td style={{ padding: "10px 12px", color: C.muted, whiteSpace: "nowrap" }}>{timeAgo(u.lastSeenAt)}</td>

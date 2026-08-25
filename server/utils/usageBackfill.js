@@ -7,31 +7,57 @@ const SECONDS_PER_CHAT = 60;
 const SECONDS_PER_VOICE = 120;
 const SECONDS_PER_PROJECT_MSG = 90;
 
+/** Chat/voice/projects come from message history; profile/admin from live heartbeats. */
+const MESSAGE_TOOLS = new Set(["chat", "voice", "projects"]);
+
 function utcDateKey(d = new Date()) {
   return d.toISOString().slice(0, 10);
 }
 
-function buildTimestampMatch(fromDate, toDateExclusive) {
+function buildTimestampMatch(fromDate, toDateInclusive) {
   const match = {};
-  if (fromDate || toDateExclusive) {
+  if (fromDate || toDateInclusive) {
     match.timestamp = {};
     if (fromDate) match.timestamp.$gte = new Date(`${fromDate}T00:00:00.000Z`);
-    if (toDateExclusive) match.timestamp.$lt = new Date(`${toDateExclusive}T00:00:00.000Z`);
+    if (toDateInclusive) {
+      const end = new Date(`${toDateInclusive}T00:00:00.000Z`);
+      end.setUTCDate(end.getUTCDate() + 1);
+      match.timestamp.$lt = end;
+    }
   }
   return match;
 }
 
+function buildDateMatch(fromDate, toDateInclusive, field = "updatedAt") {
+  const match = {};
+  if (fromDate || toDateInclusive) {
+    match[field] = {};
+    if (fromDate) match[field].$gte = new Date(`${fromDate}T00:00:00.000Z`);
+    if (toDateInclusive) {
+      const end = new Date(`${toDateInclusive}T00:00:00.000Z`);
+      end.setUTCDate(end.getUTCDate() + 1);
+      match[field].$lt = end;
+    }
+  }
+  return match;
+}
+
+function emptyMessageCounts() {
+  return { chat: 0, voice: 0, projects: 0, total: 0 };
+}
+
 /**
- * Estimate time spent from stored chat messages before live heartbeats existed.
- * Excludes today (UTC) so heartbeat totals for the current day are not doubled.
+ * Real usage from stored chat messages (all dates, including today).
  */
-async function aggregateChatUsage(fromDate, toDateExclusive) {
-  const match = buildTimestampMatch(fromDate, toDateExclusive);
+async function aggregateChatUsage(fromDate, toDateInclusive) {
+  const match = buildTimestampMatch(fromDate, toDateInclusive);
+  const convCollection = Conversation.collection.name;
+
   const rows = await Chat.aggregate([
     { $match: match },
     {
       $lookup: {
-        from: "conversations",
+        from: convCollection,
         localField: "conversationId",
         foreignField: "_id",
         as: "conv",
@@ -71,6 +97,7 @@ async function aggregateChatUsage(fromDate, toDateExclusive) {
       $group: {
         _id: { userId: "$userId", date: "$dateKey", tool: "$tool" },
         seconds: { $sum: "$msgSeconds" },
+        messages: { $sum: 1 },
         lastSeenAt: { $max: "$timestamp" },
       },
     },
@@ -81,11 +108,117 @@ async function aggregateChatUsage(fromDate, toDateExclusive) {
     date: row._id.date,
     tool: row._id.tool,
     seconds: row.seconds,
+    messages: row.messages,
     lastSeenAt: row.lastSeenAt,
   }));
 }
 
-/** Latest activity timestamp per user from chats, conversations, and projects. */
+/** Per-user message counts and conversation/project totals for the selected range. */
+async function aggregateUserActivityStats(fromDate, toDateInclusive) {
+  const chatMatch = buildTimestampMatch(fromDate, toDateInclusive);
+  const convMatch = buildDateMatch(fromDate, toDateInclusive, "updatedAt");
+  const projectMatch = buildDateMatch(fromDate, toDateInclusive, "updatedAt");
+  const convCollection = Conversation.collection.name;
+
+  const [messageRows, conversationRows, projectRows] = await Promise.all([
+    Chat.aggregate([
+      { $match: chatMatch },
+      {
+        $lookup: {
+          from: convCollection,
+          localField: "conversationId",
+          foreignField: "_id",
+          as: "conv",
+        },
+      },
+      { $unwind: { path: "$conv", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          tool: {
+            $cond: [
+              { $eq: ["$metadata.source", "voice"] },
+              "voice",
+              {
+                $cond: [{ $ifNull: ["$conv.projectId", false] }, "projects", "chat"],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { userId: "$userId", tool: "$tool" },
+          count: { $sum: 1 },
+          lastSeenAt: { $max: "$timestamp" },
+        },
+      },
+    ]),
+    Conversation.aggregate([
+      { $match: convMatch },
+      {
+        $group: {
+          _id: "$userId",
+          conversations: { $sum: 1 },
+          lastSeenAt: { $max: "$updatedAt" },
+        },
+      },
+    ]),
+    Project.aggregate([
+      { $match: projectMatch },
+      {
+        $group: {
+          _id: "$userId",
+          projects: { $sum: 1 },
+          lastSeenAt: { $max: "$updatedAt" },
+        },
+      },
+    ]),
+  ]);
+
+  const byUser = new Map();
+
+  const ensure = (userId) => {
+    const uid = String(userId);
+    if (!byUser.has(uid)) {
+      byUser.set(uid, {
+        messages: emptyMessageCounts(),
+        conversations: 0,
+        projects: 0,
+        lastSeenAt: null,
+      });
+    }
+    return byUser.get(uid);
+  };
+
+  for (const row of messageRows) {
+    const entry = ensure(row._id.userId);
+    const tool = row._id.tool;
+    if (MESSAGE_TOOLS.has(tool)) {
+      entry.messages[tool] += row.count;
+      entry.messages.total += row.count;
+    }
+    const seen = row.lastSeenAt ? new Date(row.lastSeenAt) : null;
+    if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+  }
+
+  for (const row of conversationRows) {
+    const entry = ensure(row._id);
+    entry.conversations = row.conversations;
+    const seen = row.lastSeenAt ? new Date(row.lastSeenAt) : null;
+    if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+  }
+
+  for (const row of projectRows) {
+    const entry = ensure(row._id);
+    entry.projects = row.projects;
+    const seen = row.lastSeenAt ? new Date(row.lastSeenAt) : null;
+    if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+  }
+
+  return byUser;
+}
+
+/** Latest activity timestamp per user from all stored records (always all-time). */
 async function aggregateLastSeenByUser() {
   const [fromChats, fromConversations, fromProjects] = await Promise.all([
     Chat.aggregate([
@@ -114,32 +247,23 @@ async function aggregateLastSeenByUser() {
 
 /**
  * @param {{ fromDate: string|null, allTime: boolean }} range
- * @returns {Promise<Array<{ userId, date, tool, seconds, lastSeenAt }>>}
  */
 async function getHistoricalUsageRows({ fromDate, allTime }) {
-  const today = utcDateKey();
   const effectiveFrom = allTime ? null : fromDate;
-  return aggregateChatUsage(effectiveFrom, today);
+  const toDateInclusive = utcDateKey();
+  return aggregateChatUsage(effectiveFrom, toDateInclusive);
 }
 
-function mergeHistoricalRow(into, row) {
-  const uid = String(row.userId);
-  let entry = into.get(uid);
-  if (!entry) {
-    entry = { seconds: 0, lastSeenAt: null, byTool: Object.fromEntries(TOOLS.map((t) => [t, 0])) };
-    into.set(uid, entry);
-  }
-  if (!TOOLS.includes(row.tool)) return;
-  const secs = Number(row.seconds) || 0;
-  entry.byTool[row.tool] += secs;
-  entry.seconds += secs;
-  const seen = row.lastSeenAt ? new Date(row.lastSeenAt) : null;
-  if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+async function getUserActivityStats({ fromDate, allTime }) {
+  const effectiveFrom = allTime ? null : fromDate;
+  const toDateInclusive = utcDateKey();
+  return aggregateUserActivityStats(effectiveFrom, toDateInclusive);
 }
 
 module.exports = {
   utcDateKey,
+  MESSAGE_TOOLS,
   getHistoricalUsageRows,
+  getUserActivityStats,
   aggregateLastSeenByUser,
-  mergeHistoricalRow,
 };
