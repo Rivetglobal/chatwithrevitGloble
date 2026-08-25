@@ -5,6 +5,8 @@ const {
   getHistoricalUsageRows,
   getUserActivityStats,
   aggregateLastSeenByUser,
+  getDatabaseTotals,
+  USAGE_BACKFILL_VERSION,
   MESSAGE_TOOLS,
 } = require("../utils/usageBackfill");
 
@@ -80,12 +82,13 @@ exports.getDashboard = async (req, res) => {
     const fromDate = allTime ? null : daysAgoKey(days);
     const rangeOpts = { fromDate, allTime };
 
-    const [rows, people, historicalRows, activityStats, lastSeenByUser] = await Promise.all([
+    const [rows, people, historicalRows, activityStats, lastSeenByUser, dataSource] = await Promise.all([
       UsageDaily.find(match).lean(),
       User.find().select("name username email picture isAdmin createdAt").lean(),
       getHistoricalUsageRows(rangeOpts),
       getUserActivityStats(rangeOpts),
       aggregateLastSeenByUser(),
+      getDatabaseTotals(),
     ]);
 
     const byUser = new Map();
@@ -195,6 +198,11 @@ exports.getDashboard = async (req, res) => {
     const activeUsers = users.filter((u) => u.totalSeconds > 0 || u.totalMessages > 0).length;
 
     res.json({
+      backfillVersion: USAGE_BACKFILL_VERSION,
+      dataSource: {
+        ...dataSource,
+        backfillVersion: USAGE_BACKFILL_VERSION,
+      },
       range: {
         days: allTime ? null : days,
         allTime,

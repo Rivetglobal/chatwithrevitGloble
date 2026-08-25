@@ -1,5 +1,21 @@
 # Coolify Deployment Guide
 
+## Usage dashboard shows 0 chat time?
+
+The **API** must be redeployed separately from the frontend. The dashboard reads past chat usage from the API server (`apirivetassist.rivetai.co.uk`), not from the browser.
+
+1. Coolify → **API** app (domain `apirivetassist.rivetai.co.uk`)
+2. **Redeploy** with **Force rebuild**
+3. Verify: open `https://apirivetassist.rivetai.co.uk/api/health`
+   - Should include `"usageBackfill": 3` and `"build": "2026-08-25-usage-v3"`
+4. Hard-refresh Admin → Dashboard and select **All time**
+
+If health shows no `usageBackfill`, the API is still on old code. Chat history cannot appear until the API redeploys.
+
+Add GitHub secret **`COOLIFY_API_WEBHOOK_URL`** so API auto-redeploys on merge to `main`.
+
+---
+
 ## If production shows “nothing changed” after a merge
 
 The API and the **frontend** are separate Coolify apps. Merging to `main` does **not** update the UI unless the frontend app rebuilds.

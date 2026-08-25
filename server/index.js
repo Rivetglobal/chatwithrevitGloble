@@ -61,12 +61,15 @@ app.use(
 );
 
 app.get("/api/health", (req, res) => {
+  const { USAGE_BACKFILL_VERSION } = require("./utils/usageBackfill");
   res.json({
     ok: true,
     service: "rivet-ai",
     voice: "smallwebrtc",
     dubcallAdmin: true,
     promote: "piyushmodi",
+    build: "2026-08-25-usage-v3",
+    usageBackfill: USAGE_BACKFILL_VERSION,
   });
 });
 
