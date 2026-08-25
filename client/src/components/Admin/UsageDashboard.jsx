@@ -78,6 +78,7 @@ const UsageDashboard = () => {
           <div style={{ fontSize: "1rem", fontWeight: 700, color: C.text }}>Usage dashboard</div>
           <div style={{ fontSize: "0.78rem", color: C.muted, marginTop: 4, lineHeight: 1.5 }}>
             Time each person spends in Chat, Voice, Projects, Profile, and Admin. Ranked by hours.
+            Past chat and project activity is included from message history; today uses live tracking.
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 999, padding: 3 }}>
@@ -156,7 +157,7 @@ const UsageDashboard = () => {
             ))}
             {!data.totals?.seconds && (
               <div style={{ fontSize: "0.8rem", color: C.muted, lineHeight: 1.5 }}>
-                No time recorded yet. Rankings fill in as people use Chat, Voice, Projects, and Profile.
+                No time recorded yet. Rankings fill in from past chats and as people use Chat, Voice, Projects, and Profile.
               </div>
             )}
           </div>
