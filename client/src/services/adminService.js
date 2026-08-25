@@ -41,6 +41,14 @@ const adminService = {
     const r = await axios.post(`${API_BASE_URL}/dubcall/run`, payload, { headers: authHeader() });
     return r.data;
   },
+  getDashboard: async (days = 30) => {
+    const q = days === "all" ? "all" : String(days);
+    const r = await axios.get(`${API_BASE_URL}/dashboard`, {
+      headers: authHeader(),
+      params: { days: q },
+    });
+    return r.data;
+  },
 };
 
 export default adminService;

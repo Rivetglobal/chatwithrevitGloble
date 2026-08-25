@@ -12,5 +12,6 @@ router.get('/dubcall',        auth, requireAdmin, adminController.getDubcall);
 router.put('/dubcall',        auth, requireAdmin, adminController.updateDubcall);
 router.post('/dubcall/workflows', auth, requireAdmin, adminController.listDubcallWorkflows);
 router.post('/dubcall/run',   auth, requireAdmin, adminController.runDubcallWorkflow);
+router.get('/dashboard',      auth, requireAdmin, require('../controllers/activityController').getDashboard);
 
 module.exports = router;
