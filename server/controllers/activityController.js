@@ -1,6 +1,10 @@
 const UsageDaily = require("../models/UsageDaily");
 const User = require("../models/User");
 const { TOOLS } = UsageDaily;
+const {
+  getHistoricalUsageRows,
+  aggregateLastSeenByUser,
+} = require("../utils/usageBackfill");
 
 const TOOL_LABELS = {
   chat: "Chat",
@@ -65,9 +69,13 @@ exports.getDashboard = async (req, res) => {
     const match = {};
     if (!allTime) match.date = { $gte: daysAgoKey(days) };
 
-    const [rows, people] = await Promise.all([
+    const fromDate = allTime ? null : daysAgoKey(days);
+
+    const [rows, people, historicalRows, lastSeenByUser] = await Promise.all([
       UsageDaily.find(match).lean(),
       User.find().select("name username email picture isAdmin createdAt").lean(),
+      getHistoricalUsageRows({ fromDate, allTime }),
+      aggregateLastSeenByUser(),
     ]);
 
     const byUser = new Map();
@@ -90,7 +98,7 @@ exports.getDashboard = async (req, res) => {
     let grandSeconds = 0;
     let lastActivityAt = null;
 
-    for (const row of rows) {
+    const applyUsageRow = (row) => {
       const uid = String(row.userId);
       let entry = byUser.get(uid);
       if (!entry) {
@@ -109,12 +117,22 @@ exports.getDashboard = async (req, res) => {
         byUser.set(uid, entry);
       }
       const secs = Number(row.seconds) || 0;
-      if (!TOOLS.includes(row.tool)) continue;
+      if (!TOOLS.includes(row.tool)) return;
       entry.byTool[row.tool] += secs;
       entry.totalSeconds += secs;
       toolTotals[row.tool] += secs;
       grandSeconds += secs;
       const seen = row.lastSeenAt ? new Date(row.lastSeenAt) : null;
+      if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+      if (seen && (!lastActivityAt || seen > lastActivityAt)) lastActivityAt = seen;
+    };
+
+    for (const row of rows) applyUsageRow(row);
+    for (const row of historicalRows) applyUsageRow(row);
+
+    for (const [uid, seen] of lastSeenByUser.entries()) {
+      const entry = byUser.get(uid);
+      if (!entry) continue;
       if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
       if (seen && (!lastActivityAt || seen > lastActivityAt)) lastActivityAt = seen;
     }
