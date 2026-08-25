@@ -18,14 +18,15 @@ COPY . .
 ARG VITE_API_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ARG GIT_SHA=unknown
-ARG CACHEBUST=2026-08-20-promote
+ARG CACHEBUST=2026-08-25-admin-dashboard
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ENV VITE_BUILD_ID=$CACHEBUST
 LABEL git.sha=$GIT_SHA
 LABEL cache.bust=$CACHEBUST
 
-# Build the application. GIT_SHA busts Coolify's Docker layer cache on each commit.
-RUN npm run build
+# Build the application. CACHEBUST / GIT_SHA force a fresh Vite build on Coolify.
+RUN echo "Building Rivet client CACHEBUST=$CACHEBUST GIT_SHA=$GIT_SHA" && npm run build
 
 # Stage 2: Production stage
 FROM nginx:alpine

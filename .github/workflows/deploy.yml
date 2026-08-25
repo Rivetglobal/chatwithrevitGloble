@@ -14,9 +14,10 @@ jobs:
           URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
         run: |
           if [ -z "$URL" ]; then
-            echo "No COOLIFY_WEBHOOK_URL secret set."
-            echo "If Coolify Git auto-deploy is enabled on main, this push already queued a rebuild."
-            exit 0
+            echo "::error::COOLIFY_WEBHOOK_URL is not set. The frontend Coolify app will NOT redeploy from this Action."
+            echo "Add the Coolify Deploy Webhook URL as GitHub secret COOLIFY_WEBHOOK_URL,"
+            echo "or open Coolify → frontend app → Redeploy (force rebuild, no cache)."
+            exit 1
           fi
           curl -fsS -X GET "$URL"
           echo "Coolify frontend webhook triggered."
@@ -26,7 +27,8 @@ jobs:
           URL: ${{ secrets.COOLIFY_API_WEBHOOK_URL }}
         run: |
           if [ -z "$URL" ]; then
-            echo "No COOLIFY_API_WEBHOOK_URL secret set — skipping API webhook."
+            echo "::warning::COOLIFY_API_WEBHOOK_URL is not set — API webhook skipped."
+            echo "If Coolify Git auto-deploy is off for the API, redeploy that app manually too."
             exit 0
           fi
           curl -fsS -X GET "$URL"

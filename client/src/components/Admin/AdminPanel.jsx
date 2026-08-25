@@ -347,6 +347,9 @@ const AdminPanel = () => {
             ? "See how much time every user spends in each Rivet tool."
             : "Settings are stored in the database and take effect immediately — no server restart needed."}
         </p>
+        <div style={{ fontSize: "0.68rem", color: C.muted, marginBottom: 14 }}>
+          Build 2026-08-25-force-frontend · Dashboard + Settings
+        </div>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 22, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: 4, width: "fit-content" }}>
           {[{ id: "dashboard", label: "Dashboard" }, { id: "settings", label: "Settings" }].map((item) => {
