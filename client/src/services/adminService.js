@@ -49,6 +49,12 @@ const adminService = {
     });
     return r.data;
   },
+  getApiHealth: async () => {
+    const base = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+    const healthUrl = base.endsWith("/api") ? `${base}/health` : `${base}/api/health`;
+    const r = await axios.get(healthUrl);
+    return r.data;
+  },
 };
 
 export default adminService;

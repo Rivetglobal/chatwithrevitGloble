@@ -64,6 +64,7 @@ const card = {
 const UsageDashboard = () => {
   const [days, setDays] = useState("all");
   const [data, setData] = useState(null);
+  const [apiHealth, setApiHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -73,8 +74,14 @@ const UsageDashboard = () => {
       setLoading(true);
       setError("");
       try {
-        const next = await adminService.getDashboard(days);
-        if (!cancelled) setData(next);
+        const [next, health] = await Promise.all([
+          adminService.getDashboard(days),
+          adminService.getApiHealth().catch(() => null),
+        ]);
+        if (!cancelled) {
+          setData(next);
+          setApiHealth(health);
+        }
       } catch (err) {
         if (!cancelled) setError(err?.response?.data?.error || "Could not load usage dashboard.");
       } finally {
@@ -86,6 +93,27 @@ const UsageDashboard = () => {
 
   const maxTool = Math.max(1, ...(data?.tools || []).map((t) => t.seconds));
   const users = data?.users || [];
+  const ds = data?.dataSource;
+  const backfillOk = (data?.backfillVersion || apiHealth?.usageBackfill || 0) >= 3;
+  const dbChats = ds?.chats ?? 0;
+
+  let statusBanner = null;
+  if (!backfillOk) {
+    statusBanner = {
+      tone: "warn",
+      text: "The API server has not been redeployed with usage backfill yet. Redeploy the API app on Coolify (apirivetassist.rivetai.co.uk), then refresh. Check /api/health — usageBackfill should be 3.",
+    };
+  } else if (dbChats === 0) {
+    statusBanner = {
+      tone: "info",
+      text: "No chat messages are stored in the database yet. Past usage will appear here after users send messages in Chat or Projects.",
+    };
+  } else {
+    statusBanner = {
+      tone: "ok",
+      text: `Database has ${dbChats} stored message${dbChats === 1 ? "" : "s"} across ${ds?.usersWithChats || 0} user${ds?.usersWithChats === 1 ? "" : "s"} and ${ds?.conversations || 0} conversation${ds?.conversations === 1 ? "" : "s"}. Showing ${data?.totals?.messages || 0} in this period.`,
+    };
+  }
 
   return (
     <div style={{ fontFamily: font }}>
@@ -127,6 +155,26 @@ const UsageDashboard = () => {
       {error && (
         <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 8, background: "#FEF2F2", border: "1px solid #FECACA", color: C.error, fontSize: "0.82rem" }}>
           {error}
+        </div>
+      )}
+
+      {statusBanner && !loading && (
+        <div style={{
+          marginBottom: 14,
+          padding: "10px 14px",
+          borderRadius: 8,
+          fontSize: "0.82rem",
+          lineHeight: 1.5,
+          background: statusBanner.tone === "warn" ? "#FFFBEB" : statusBanner.tone === "ok" ? "#F0FDF4" : "#F8FAFC",
+          border: `1px solid ${statusBanner.tone === "warn" ? "#FDE68A" : statusBanner.tone === "ok" ? "#BBF7D0" : C.border}`,
+          color: statusBanner.tone === "warn" ? "#92400E" : statusBanner.tone === "ok" ? "#166534" : C.muted,
+        }}>
+          {statusBanner.text}
+          {apiHealth?.build && (
+            <div style={{ marginTop: 4, fontSize: "0.72rem", opacity: 0.85 }}>
+              API build: {apiHealth.build} · usageBackfill: {apiHealth.usageBackfill ?? "missing"}
+            </div>
+          )}
         </div>
       )}
 
