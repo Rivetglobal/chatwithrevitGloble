@@ -1,6 +1,23 @@
 # Coolify Deployment Guide
 
-This guide explains how to deploy your client application using Coolify.
+## If production shows “nothing changed” after a merge
+
+The API and the **frontend** are separate Coolify apps. Merging to `main` does **not** update the UI unless the frontend app rebuilds.
+
+1. Coolify → **frontend / client** app (domain `rivetassist.rivetai.co.uk`)
+2. **Redeploy** with **Force rebuild** (disable Docker cache if the option exists)
+3. Wait until the deploy finishes
+4. Hard-refresh the browser (`Ctrl+Shift+R` / `Cmd+Shift+R`)
+5. Check https://rivetassist.rivetai.co.uk/version.json — it should show a new `build` string
+
+Optional but recommended: add GitHub Actions secrets so merges auto-trigger Coolify:
+
+- `COOLIFY_WEBHOOK_URL` — Deploy webhook for the **frontend** app
+- `COOLIFY_API_WEBHOOK_URL` — Deploy webhook for the **API** app
+
+Without `COOLIFY_WEBHOOK_URL`, the “Trigger production deploy” Action fails on purpose so a silent no-op cannot look green.
+
+---
 
 ## Prerequisites
 
