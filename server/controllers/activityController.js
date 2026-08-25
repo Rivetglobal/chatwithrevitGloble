@@ -3,7 +3,9 @@ const User = require("../models/User");
 const { TOOLS } = UsageDaily;
 const {
   getHistoricalUsageRows,
+  getUserActivityStats,
   aggregateLastSeenByUser,
+  MESSAGE_TOOLS,
 } = require("../utils/usageBackfill");
 
 const TOOL_LABELS = {
@@ -13,6 +15,8 @@ const TOOL_LABELS = {
   profile: "Profile",
   admin: "Admin",
 };
+
+const HEARTBEAT_ONLY_TOOLS = new Set(["profile", "admin"]);
 
 function utcDateKey(d = new Date()) {
   return d.toISOString().slice(0, 10);
@@ -25,6 +29,10 @@ function daysAgoKey(days) {
 }
 
 function emptyByTool() {
+  return Object.fromEntries(TOOLS.map((t) => [t, 0]));
+}
+
+function emptyMessageByTool() {
   return Object.fromEntries(TOOLS.map((t) => [t, 0]));
 }
 
@@ -70,11 +78,13 @@ exports.getDashboard = async (req, res) => {
     if (!allTime) match.date = { $gte: daysAgoKey(days) };
 
     const fromDate = allTime ? null : daysAgoKey(days);
+    const rangeOpts = { fromDate, allTime };
 
-    const [rows, people, historicalRows, lastSeenByUser] = await Promise.all([
+    const [rows, people, historicalRows, activityStats, lastSeenByUser] = await Promise.all([
       UsageDaily.find(match).lean(),
       User.find().select("name username email picture isAdmin createdAt").lean(),
-      getHistoricalUsageRows({ fromDate, allTime }),
+      getHistoricalUsageRows(rangeOpts),
+      getUserActivityStats(rangeOpts),
       aggregateLastSeenByUser(),
     ]);
 
@@ -91,11 +101,17 @@ exports.getDashboard = async (req, res) => {
         totalSeconds: 0,
         lastSeenAt: null,
         byTool: emptyByTool(),
+        messagesByTool: emptyMessageByTool(),
+        totalMessages: 0,
+        conversations: 0,
+        projects: 0,
       });
     }
 
     const toolTotals = emptyByTool();
+    const messageTotals = emptyMessageByTool();
     let grandSeconds = 0;
+    let grandMessages = 0;
     let lastActivityAt = null;
 
     const applyUsageRow = (row) => {
@@ -113,6 +129,10 @@ exports.getDashboard = async (req, res) => {
           totalSeconds: 0,
           lastSeenAt: null,
           byTool: emptyByTool(),
+          messagesByTool: emptyMessageByTool(),
+          totalMessages: 0,
+          conversations: 0,
+          projects: 0,
         };
         byUser.set(uid, entry);
       }
@@ -127,8 +147,26 @@ exports.getDashboard = async (req, res) => {
       if (seen && (!lastActivityAt || seen > lastActivityAt)) lastActivityAt = seen;
     };
 
-    for (const row of rows) applyUsageRow(row);
+    for (const row of rows) {
+      if (HEARTBEAT_ONLY_TOOLS.has(row.tool)) applyUsageRow(row);
+    }
     for (const row of historicalRows) applyUsageRow(row);
+
+    for (const [uid, stats] of activityStats.entries()) {
+      const entry = byUser.get(uid);
+      if (!entry) continue;
+      entry.conversations = stats.conversations || 0;
+      entry.projects = stats.projects || 0;
+      entry.totalMessages = stats.messages?.total || 0;
+      for (const tool of MESSAGE_TOOLS) {
+        entry.messagesByTool[tool] = stats.messages?.[tool] || 0;
+        messageTotals[tool] += stats.messages?.[tool] || 0;
+      }
+      grandMessages += entry.totalMessages;
+      const seen = stats.lastSeenAt ? new Date(stats.lastSeenAt) : null;
+      if (seen && (!entry.lastSeenAt || seen > entry.lastSeenAt)) entry.lastSeenAt = seen;
+      if (seen && (!lastActivityAt || seen > lastActivityAt)) lastActivityAt = seen;
+    }
 
     for (const [uid, seen] of lastSeenByUser.entries()) {
       const entry = byUser.get(uid);
@@ -137,7 +175,10 @@ exports.getDashboard = async (req, res) => {
       if (seen && (!lastActivityAt || seen > lastActivityAt)) lastActivityAt = seen;
     }
 
-    const users = Array.from(byUser.values()).sort((a, b) => b.totalSeconds - a.totalSeconds);
+    const users = Array.from(byUser.values()).sort((a, b) => {
+      if (b.totalSeconds !== a.totalSeconds) return b.totalSeconds - a.totalSeconds;
+      return b.totalMessages - a.totalMessages;
+    });
     users.forEach((u, i) => { u.rank = i + 1; });
 
     const toolRanking = TOOLS
@@ -145,12 +186,13 @@ exports.getDashboard = async (req, res) => {
         tool,
         label: TOOL_LABELS[tool],
         seconds: toolTotals[tool],
+        messages: messageTotals[tool] || 0,
         share: grandSeconds ? toolTotals[tool] / grandSeconds : 0,
       }))
       .sort((a, b) => b.seconds - a.seconds)
       .map((row, i) => ({ ...row, rank: i + 1 }));
 
-    const activeUsers = users.filter((u) => u.totalSeconds > 0).length;
+    const activeUsers = users.filter((u) => u.totalSeconds > 0 || u.totalMessages > 0).length;
 
     res.json({
       range: {
@@ -161,6 +203,7 @@ exports.getDashboard = async (req, res) => {
       },
       totals: {
         seconds: grandSeconds,
+        messages: grandMessages,
         users: people.length,
         activeUsers,
         lastActivityAt,
